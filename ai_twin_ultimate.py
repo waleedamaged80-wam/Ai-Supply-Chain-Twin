@@ -27,7 +27,8 @@ PROHIBITED USES:
 COMMERCIAL LICENSING:
 For commercial use, modifications, or distribution rights, contact:
   Waleed A. Mageed
-  Email: waleed.amaged80@gmail.com
+  Email: [waleed.amaged80@gmail.com]
+  
 
 Available licenses: Enterprise, SaaS, White-label, Custom development
 
@@ -685,7 +686,433 @@ def main():
     # ============================================================
     # TAB 1: PORTFOLIO DASHBOARD
     # ============================================================
-    tab_portfolio, *tab_skus = st.tabs(["📊 Portfolio Dashboard"] + [f"📦 {item}" for item in selected_items])
+    tab_guide, tab_portfolio, *tab_skus = st.tabs(["📖 User Guide", "📊 Portfolio Dashboard"] + [f"📦 {item}" for item in selected_items])
+    
+    # ============================================================
+    # USER GUIDE TAB
+    # ============================================================
+    with tab_guide:
+        st.header("📖 User Guide - How to Use AI Supply Chain Twin")
+        
+        st.markdown("""
+        Welcome to the **AI Supply Chain Twin**! This guide will help you optimize your inventory policies 
+        and test disruption scenarios using advanced Monte Carlo simulation.
+        """)
+        
+        # Quick Start
+        with st.expander("🚀 Quick Start (5 Minutes)", expanded=True):
+            st.markdown("""
+            ### Step-by-Step Getting Started
+            
+            **1. Upload Your Data** 📤
+            - Click **"Browse files"** in the sidebar
+            - Upload a CSV file with SKU and demand data
+            - Example columns: `SKU_ID`, `Sales`, `Date`, `Location`
+            
+            **2. Map Your Columns** 🗂️
+            - Select which column contains **SKU/Product IDs**
+            - Select which column contains **Demand/Sales data**
+            
+            **3. Choose SKUs** 📦
+            - **Multi-Select**: Pick specific products to analyze
+            - **ABC Classification**: Auto-select top performers
+            - Start with 2-3 SKUs for your first run
+            
+            **4. Set Simulation Parameters** ⚙️
+            - **Simulation Horizon**: 30-180 days (default: 90)
+            - **Monte Carlo Iterations**: 20-100 (default: 50, more = more accurate)
+            - **Target Service Level**: Your goal (default: 95%)
+            
+            **5. Configure Each SKU** 📊
+            - Go to individual SKU tabs (e.g., "📦 Product A")
+            - Review **Historical Demand** statistics
+            - Set **Inventory Policy** parameters
+            - Set **Cost & Pricing** details
+            - Click **"▶️ Run Simulation"**
+            
+            **6. Review Results** 🎯
+            - See **Performance Metrics** (profit, service level, turns)
+            - Review **AI Insights & Recommendations**
+            - Check **Risk Score** (0-100 scale)
+            - View **Charts** (profit distribution, inventory dynamics)
+            
+            **7. View Portfolio** 🌐
+            - Switch to **"Portfolio Dashboard"** tab
+            - See combined performance across all analyzed SKUs
+            - Compare SKUs side-by-side
+            - Identify critical risks
+            """)
+        
+        # Understanding Outputs
+        with st.expander("📊 Understanding Your Results"):
+            st.markdown("""
+            ### Key Metrics Explained
+            
+            #### 💰 Average Profit
+            - **What it is**: Expected profit over the simulation period
+            - **How calculated**: Revenue - (Holding + Stockout + Transport costs)
+            - **Good result**: Positive and stable (low ± variation)
+            - **What to do**: If negative, check unit costs vs selling price
+            
+            #### 📈 Service Level
+            - **What it is**: % of customer demand fulfilled
+            - **How calculated**: (Fulfilled units / Total demand) × 100
+            - **Good result**: ≥ 95% (meets or exceeds target)
+            - **What to do**: If low, increase safety stock or reduce lead time
+            
+            #### 🔄 Inventory Turns
+            - **What it is**: How many times you sell through inventory per year
+            - **How calculated**: (Total demand × unit cost) / Average inventory value
+            - **Good result**: 5-15x for most products (varies by industry)
+            - **What to do**: If low (<3), reduce safety stock; if high (>20), may risk stockouts
+            
+            #### ⚠️ Avg Lost Sales
+            - **What it is**: Average units NOT fulfilled due to stockouts
+            - **Good result**: 0-5 units per simulation
+            - **What to do**: If high, increase safety stock or order quantities
+            
+            #### 🎯 Risk Score (0-100)
+            - **What it is**: Multi-factor risk assessment
+            - **Components**:
+              - Service gap (50%): How far below target
+              - Profit volatility (30%): How unstable profits are
+              - Stockout cost (20%): Financial impact of shortages
+            - **Scale**:
+              - 0-30: 🟢 Low Risk (Healthy)
+              - 30-60: 🟡 Medium Risk (Monitor)
+              - 60-100: 🔴 Critical Risk (Action needed)
+            """)
+        
+        # Parameter Configuration
+        with st.expander("⚙️ Configuring Parameters"):
+            st.markdown("""
+            ### Inventory Policy Parameters
+            
+            #### 📅 Lead Time (days)
+            - **What it is**: Time from ordering to receiving inventory
+            - **Default**: Calculated from your data
+            - **How to set**: Use actual supplier lead times
+            - **Impact**: Higher lead time = more safety stock needed
+            
+            #### 📦 Safety Stock (units)
+            - **What it is**: Buffer inventory to prevent stockouts
+            - **Formula**: 1.65 × σ × √(lead_time)
+            - **How to adjust**: 
+              - Increase if service level too low
+              - Decrease if inventory turns too low
+            
+            #### 📊 Order Quantity (units)
+            - **What it is**: How much to order each time
+            - **Default**: Based on demand variability
+            - **How to adjust**: Balance ordering costs vs holding costs
+            
+            #### 🎯 Reorder Point (units)
+            - **What it is**: When inventory drops to this level, order more
+            - **Formula**: Demand × (Lead time × 50%)
+            - **How to adjust**: Set above safety stock
+            
+            ### Cost & Pricing Parameters
+            
+            #### 💵 Unit Cost ($)
+            - **What it is**: What you pay per unit from supplier
+            - **How to set**: Use actual procurement costs
+            - **Can be**: $0.01 to $10,000+ (any decimal value)
+            
+            #### 💰 Profit Margin (%)
+            - **What it is**: Markup percentage on unit cost
+            - **Example**: 50% margin on $100 cost = $150 selling price
+            - **How to set**: Use target margins from pricing strategy
+            
+            #### 📈 Holding Cost Rate (% per year)
+            - **What it is**: Cost of storing inventory (% of value)
+            - **Typical**: 15-30% per year
+            - **Includes**: Warehouse, insurance, obsolescence, capital costs
+            
+            #### ⚠️ Stockout Penalty ($)
+            - **What it is**: Cost per unit of lost sale
+            - **Includes**: Lost profit + customer dissatisfaction
+            - **Typical**: 2-5× unit profit margin
+            
+            #### 🚚 Transport Cost ($/unit)
+            - **What it is**: Shipping cost per unit
+            - **How to set**: Calculate from freight invoices
+            """)
+        
+        # Scenario Planning
+        with st.expander("🎯 Scenario Planning & Testing"):
+            st.markdown("""
+            ### How to Test Disruption Scenarios
+            
+            Each SKU has a **"Scenario Planning"** section where you can describe disruptions 
+            in natural language. The AI will parse and simulate them.
+            
+            #### Example Scenarios:
+            
+            **Demand Disruptions:**
+            - "Demand surge 30% for 3 weeks"
+            - "Sales spike 50% next month"
+            - "Demand increase 20% starting week 2"
+            
+            **Supply Disruptions:**
+            - "Factory delay 10 days"
+            - "Port strike 2 weeks"
+            - "Supplier capacity reduced 40%"
+            
+            **Combined:**
+            - "Demand surge 25% with factory delay 7 days"
+            - "Holiday rush 60% increase but supplier unreliable"
+            
+            #### What the AI Does:
+            1. **Parses** your scenario text
+            2. **Extracts** key parameters (%, days, timing)
+            3. **Adjusts** simulation accordingly
+            4. **Runs** Monte Carlo with disruption
+            5. **Compares** to baseline performance
+            6. **Recommends** actions to take
+            
+            #### AI Decision Output:
+            You'll see:
+            - 🟢 **STABLE**: Maintain current policy
+            - 🟡 **CAUTION**: Monitor closely, prepare adjustments
+            - 🔴 **CRITICAL**: Take immediate action
+            
+            Plus specific recommendations like:
+            - "Increase safety stock by 30%"
+            - "Expedite next order"
+            - "Negotiate backup supplier"
+            """)
+        
+        # Multi-Echelon Network
+        with st.expander("🏭 Understanding the Multi-Echelon Network"):
+            st.markdown("""
+            ### 3-Echelon Supply Chain Structure
+            
+            Your simulation models a realistic multi-level supply network:
+            
+            ```
+            🏭 FACTORY (Supplier)
+                │
+                │ Lead Time: Your configured time (e.g., 10 days)
+                │ Capacity: 100,000 units
+                │ Transport: $4/unit
+                ↓
+            🏢 REGIONAL DC (Distribution Center)
+                │
+                │ Lead Time: 20% of total (e.g., 2 days)
+                │ Inventory: 2× safety stock
+                │ Transport: $2/unit
+                ↓
+            🏪 LOCAL STORE (Point of Sale)
+                │
+                │ Inventory: 1× safety stock
+                │ Fulfills: Customer demand immediately
+                ↓
+            👥 CUSTOMERS (End demand)
+            ```
+            
+            #### How It Works:
+            
+            **Daily Cycle:**
+            1. Customer demand arrives at Local Store
+            2. Local fulfills from inventory (or stockout)
+            3. If Local inventory low → orders from Regional
+            4. If Regional inventory low → orders from Factory
+            5. In-transit orders arrive after lead time
+            6. Costs calculated across ALL levels
+            
+            #### Benefits:
+            - **Realistic modeling** (not single warehouse)
+            - **Pipeline tracking** (in-transit inventory)
+            - **Cascading effects** (disruptions propagate)
+            - **Multi-level costs** (holding at each echelon)
+            
+            #### Costs Include:
+            - Holding costs at Factory, Regional, AND Local
+            - Transport costs between levels
+            - Stockout penalties at customer-facing level
+            """)
+        
+        # Best Practices
+        with st.expander("💡 Tips & Best Practices"):
+            st.markdown("""
+            ### Getting the Most Out of AI Supply Chain Twin
+            
+            #### 📊 Data Quality
+            - ✅ **Clean data**: Remove duplicates, fix missing values
+            - ✅ **Sufficient history**: 3+ months of demand data
+            - ✅ **Consistent units**: Same unit of measure throughout
+            - ✅ **Representative**: Data reflects normal operations
+            
+            #### 🎯 Starting Your Analysis
+            - ✅ **Start small**: 2-3 SKUs first, then expand
+            - ✅ **Use ABC**: Focus on high-value items first
+            - ✅ **Test scenarios**: Try conservative estimates initially
+            - ✅ **Iterate**: Refine parameters based on results
+            
+            #### ⚙️ Parameter Selection
+            - ✅ **Use actuals**: Real costs, real lead times
+            - ✅ **Be realistic**: Don't over-optimize initially
+            - ✅ **Start conservative**: Higher safety stocks to start
+            - ✅ **Test sensitivity**: Change one parameter at a time
+            
+            #### 📈 Interpreting Results
+            - ✅ **Check distribution**: Look at profit variation (± value)
+            - ✅ **Monitor service**: Should meet/exceed target
+            - ✅ **Review charts**: Visual patterns reveal insights
+            - ✅ **Compare scenarios**: Baseline vs disruption
+            
+            #### 🚀 Taking Action
+            - ✅ **Document findings**: Note what parameters work
+            - ✅ **Test before implementing**: Validate in real world
+            - ✅ **Monitor actual**: Compare predictions to reality
+            - ✅ **Refine model**: Update as you learn
+            
+            #### ⚠️ Common Mistakes to Avoid
+            - ❌ **Setting unit cost too high**: Check against actual prices
+            - ❌ **Unrealistic margins**: Use market-based margins
+            - ❌ **Too few iterations**: Use 50+ for stable results
+            - ❌ **Ignoring risk score**: High scores need attention
+            - ❌ **Over-optimizing**: Leave buffer for uncertainty
+            """)
+        
+        # Troubleshooting
+        with st.expander("🔧 Troubleshooting Common Issues"):
+            st.markdown("""
+            ### Common Problems & Solutions
+            
+            #### ❌ "Average Profit is Negative"
+            **Problem**: Losing money in simulation
+            
+            **Check:**
+            - ✅ Unit cost vs selling price (margin should be positive)
+            - ✅ Safety stock not too high (excessive holding costs)
+            - ✅ Stockout penalty not unrealistic
+            - ✅ Transport costs reasonable
+            
+            **Fix**: Reduce unit cost OR increase margin percentage
+            
+            ---
+            
+            #### ❌ "Service Level Below Target"
+            **Problem**: Too many stockouts
+            
+            **Check:**
+            - ✅ Safety stock sufficient for demand variability
+            - ✅ Lead time accurate
+            - ✅ Reorder point above safety stock
+            
+            **Fix**: Increase safety stock by 20-50%
+            
+            ---
+            
+            #### ❌ "Inventory Turns Too Low"
+            **Problem**: Capital tied up in inventory
+            
+            **Check:**
+            - ✅ Safety stock not excessive
+            - ✅ Order quantities not too large
+            - ✅ Demand forecast accurate
+            
+            **Fix**: Reduce safety stock gradually while monitoring service
+            
+            ---
+            
+            #### ❌ "High Risk Score"
+            **Problem**: System flagging as risky
+            
+            **Check:**
+            - ✅ Service level (biggest factor - 50% of score)
+            - ✅ Profit volatility (high variation = risky)
+            - ✅ Stockout frequency
+            
+            **Fix**: Address root cause (usually service level)
+            
+            ---
+            
+            #### ❌ "Results Don't Make Sense"
+            **Problem**: Numbers seem wrong
+            
+            **Check:**
+            - ✅ Data uploaded correctly (check column mapping)
+            - ✅ Units consistent (all in same UOM)
+            - ✅ Decimal points correct ($100 not $10000)
+            - ✅ Sufficient historical data
+            
+            **Fix**: Re-upload data, verify column selection
+            """)
+        
+        # Contact & Support
+        with st.expander("📞 Support & Commercial Licensing"):
+            st.markdown("""
+            ### Need Help or Want to Use Commercially?
+            
+            #### 🎓 Educational/Personal Use
+            This tool is **free for educational and personal use**.
+            
+            If you encounter issues:
+            - Check this User Guide
+            - Review the troubleshooting section above
+            - Verify your data format and parameters
+            
+            #### 💼 Commercial Use
+            For business/commercial use, you need a license.
+            
+            **Available Options:**
+            - 🏢 **Enterprise License**: Internal company use
+            - 🌐 **SaaS License**: Offer to your customers
+            - 🎨 **White-Label**: Rebrand as your own
+            - 🔧 **Custom Development**: Tailored features
+            
+            **Contact:**
+            - 📧 Email: [waleed.amaged80@gmail.com]
+            
+            
+            #### 🏆 About the Developer
+            **Waleed A. Mageed**
+            - CSCP (Certified Supply Chain Professional)
+            - PMP (Project Management Professional)
+            - Supply Chain & Procurement Professional
+            
+            
+            ---
+            
+            **© 2026 Waleed A. Mageed. All Rights Reserved.**
+            
+            *This software is proprietary. See LICENSE for complete terms.*
+            """)
+        
+        # Quick Reference
+        st.divider()
+        st.subheader("📋 Quick Reference Card")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("""
+            **⚙️ Recommended Settings**
+            - Iterations: 50-70
+            - Horizon: 90 days
+            - Service Target: 95%
+            - Holding Rate: 20-25%
+            """)
+        
+        with col2:
+            st.markdown("""
+            **📊 Good Benchmarks**
+            - Service Level: >95%
+            - Inventory Turns: 5-15x
+            - Risk Score: <30
+            - Lost Sales: <1% demand
+            """)
+        
+        with col3:
+            st.markdown("""
+            **🎯 Success Indicators**
+            - Positive profit ✅
+            - Low variation (±) ✅
+            - Service at/above target ✅
+            - Green risk status ✅
+            """)
     
     with tab_portfolio:
         st.header("🌐 Multi-SKU Portfolio Overview")
