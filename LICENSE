@@ -1,0 +1,218 @@
+PROPRIETARY SOFTWARE LICENSE AGREEMENT
+
+Copyright © 2026 Waleed A. Mageed. All Rights Reserved.
+
+================================================================================
+AI SUPPLY CHAIN TWIN - PROPRIETARY SOFTWARE
+Multi-Echelon Inventory Optimization & Intelligent Scenario Planning
+================================================================================
+
+NOTICE: This software and associated documentation files (the "Software") are 
+the proprietary and confidential property of Waleed A. Mageed ("Owner"). 
+All rights are reserved by the Owner.
+
+================================================================================
+1. GRANT OF LICENSE
+================================================================================
+
+Subject to the terms and conditions of this Agreement, the Owner grants you a 
+limited, non-exclusive, non-transferable, revocable license to:
+
+   ✅ PERMITTED USES:
+   • Use the Software for personal, non-commercial purposes
+   • Run the Software on your own computer for evaluation
+   • Report bugs and suggest improvements to the Owner
+
+   ❌ PROHIBITED USES:
+   • Commercial use, including but not limited to selling, licensing, or 
+     offering the Software as a service
+   • Modification, adaptation, translation, or creation of derivative works
+   • Distribution, sublicensing, rental, or lending of the Software
+   • Removal or alteration of any proprietary notices, labels, or marks
+   • Reverse engineering, decompiling, or disassembling (except where 
+     prohibited by applicable law)
+   • Use of the Software in any product or service that competes with the Owner
+   • Claiming authorship or ownership of the Software or any portion thereof
+
+================================================================================
+2. OWNERSHIP AND INTELLECTUAL PROPERTY RIGHTS
+================================================================================
+
+The Software is licensed, not sold. Waleed A. Mageed retains all right, title, 
+and interest in and to the Software, including all intellectual property rights 
+therein. This license does not grant you any rights to:
+
+   • Patents, copyrights, trade secrets, trademarks, or other proprietary rights
+   • Any portion of the Software's source code, algorithms, or methodologies
+   • The name "AI Supply Chain Twin" or any associated branding
+
+All rights not expressly granted herein are reserved by the Owner.
+
+================================================================================
+3. RESTRICTIONS
+================================================================================
+
+You SHALL NOT:
+
+   a) Use the Software for any commercial purpose whatsoever
+   b) Sell, rent, lease, sublicense, lend, or transfer the Software
+   c) Modify, adapt, translate, or create derivative works based on the Software
+   d) Copy or reproduce the Software (except for backup purposes)
+   e) Remove, alter, or obscure any copyright, trademark, or other proprietary 
+      rights notices
+   f) Use the Software in violation of any applicable law or regulation
+   g) Use the Software to provide services to third parties
+   h) Incorporate the Software into any other software or product
+   i) Use the Software to compete with the Owner's business interests
+   j) Share, publish, or distribute the Software to any third party
+
+================================================================================
+4. COMMERCIAL USE INQUIRIES
+================================================================================
+
+If you wish to use the Software for commercial purposes, you must obtain a 
+separate commercial license from the Owner. Please contact:
+
+   Waleed A. Mageed
+   Email: [waleed.amaged80@gmail.com]
+   
+Commercial licensing options may include:
+   • Enterprise site licenses
+   • SaaS/hosting rights
+   • Modification rights
+   • White-label licensing
+   • Custom development
+
+================================================================================
+5. ATTRIBUTION AND ACKNOWLEDGMENTS
+================================================================================
+
+If you use the Software for academic or educational purposes and publish or 
+present results derived from its use, you must provide the following attribution:
+
+   "Analysis performed using AI Supply Chain Twin, proprietary software 
+   developed by Waleed A. Mageed (2026)."
+
+THIRD-PARTY COMPONENTS:
+
+This Software incorporates the following open-source libraries, each governed 
+by its respective license:
+
+   • Streamlit (Apache License 2.0)
+   • Pandas (BSD 3-Clause License)
+   • NumPy (BSD License)
+   • SciPy (BSD License)
+   • Plotly (MIT License)
+
+The restrictions in this license apply only to the proprietary portions of the 
+Software developed by Waleed A. Mageed. The third-party components remain 
+subject to their original licenses.
+
+DEVELOPMENT ACKNOWLEDGMENT:
+
+This software was developed with assistance from Claude, an AI assistant by 
+Anthropic. This acknowledgment does not grant any rights to Anthropic or any 
+third party.
+
+================================================================================
+6. DISCLAIMER OF WARRANTIES
+================================================================================
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+THE OWNER DOES NOT WARRANT THAT:
+   • The Software will meet your requirements
+   • The Software will be uninterrupted, timely, secure, or error-free
+   • The results obtained from use of the Software will be accurate or reliable
+   • Any errors in the Software will be corrected
+
+Use of the Software is at your sole risk.
+
+================================================================================
+7. LIMITATION OF LIABILITY
+================================================================================
+
+IN NO EVENT SHALL WALEED A. MAGEED BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, 
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+
+This includes, but is not limited to:
+   • Direct, indirect, incidental, special, consequential, or punitive damages
+   • Loss of profits, revenue, data, or use
+   • Business interruption
+   • Cost of substitute goods or services
+
+The limitations in this section apply even if the Owner has been advised of 
+the possibility of such damages.
+
+================================================================================
+8. TERMINATION
+================================================================================
+
+This license is effective until terminated. Your rights under this license 
+will terminate automatically without notice if you fail to comply with any 
+term of this Agreement.
+
+Upon termination, you must:
+   • Immediately cease all use of the Software
+   • Destroy all copies of the Software in your possession
+   • Certify in writing that you have complied with these requirements
+
+The Owner may also terminate this license at any time for any reason by 
+providing notice to you.
+
+Sections 2, 4, 5, 6, 7, 9, and 10 shall survive any termination of this license.
+
+================================================================================
+9. GOVERNING LAW AND JURISDICTION
+================================================================================
+
+This Agreement shall be governed by and construed in accordance with the laws 
+of [Saudia Arabia], without regard to its conflict of law provisions.
+
+Any disputes arising under or in connection with this Agreement shall be 
+subject to the exclusive jurisdiction of the courts of [Saudia Arabia].
+
+================================================================================
+10. GENERAL PROVISIONS
+================================================================================
+
+ENTIRE AGREEMENT: This Agreement constitutes the entire agreement between you 
+and the Owner regarding the Software and supersedes all prior or contemporaneous 
+understandings.
+
+SEVERABILITY: If any provision of this Agreement is found to be unenforceable 
+or invalid, that provision shall be limited or eliminated to the minimum extent 
+necessary so that this Agreement shall otherwise remain in full force and effect.
+
+NO WAIVER: The failure of the Owner to enforce any right or provision of this 
+Agreement will not constitute a waiver of such right or provision.
+
+ASSIGNMENT: You may not assign or transfer this Agreement or any rights granted 
+hereunder, by operation of law or otherwise, without the Owner's prior written 
+consent.
+
+AMENDMENTS: The Owner reserves the right to modify this Agreement at any time. 
+Continued use of the Software after such modifications constitutes acceptance 
+of the modified terms.
+
+CONTACT: For questions about this license, please contact Waleed A. Mageed at 
+[waleed.amaged80@gmail.com].
+
+================================================================================
+
+BY USING THE SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT, 
+UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS.
+
+IF YOU DO NOT AGREE TO THE TERMS OF THIS AGREEMENT, DO NOT USE THE SOFTWARE.
+
+================================================================================
+
+Version: 1.0
+Last Updated: April 7, 2026
+Owner: Waleed A. Mageed
+
+================================================================================
