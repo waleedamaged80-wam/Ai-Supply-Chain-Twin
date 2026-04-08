@@ -47,8 +47,8 @@ of this software.
 
 For complete license terms, see LICENSE file.
 
-Version: 1.2.1
-Last Updated: April 7, 2026
+Version: 1.2.2
+Last Updated: April 8, 2026
 
 ================================================================================
 """
@@ -1084,10 +1084,9 @@ def main():
             
             #### 🏆 About the Developer
             **Waleed A. Mageed**
-            - CSCP Fellow (Certified Supply Chain Professional)
+            - CSCP (Certified Supply Chain Professional)
             - PMP (Project Management Professional)
-            - 15+ years supply chain experience
-            - Expert in inventory optimization and AI decision systems
+            - Supply Chain & Procurement Professional
             
             ---
             
@@ -1161,131 +1160,131 @@ def main():
                 total_profit = sum(r['sim_df']['profit'].mean() for r in analyzed_skus.values())
                 avg_service = np.mean([r['sim_df']['service_level'].mean() for r in analyzed_skus.values()])
             
-            with col1:
-                st.metric("Total Portfolio Revenue", f"${total_revenue:,.0f}")
-            with col2:
-                st.metric("Total Portfolio Profit", f"${total_profit:,.0f}")
-            with col3:
-                service_delta = avg_service - target_service
-                st.metric(
-                    "Avg Portfolio Service",
-                    f"{avg_service:.1f}%",
-                    delta=f"{service_delta:+.1f}%",
-                    delta_color="normal" if service_delta >= 0 else "inverse"
+                with col1:
+                    st.metric("Total Portfolio Revenue", f"${total_revenue:,.0f}")
+                with col2:
+                    st.metric("Total Portfolio Profit", f"${total_profit:,.0f}")
+                with col3:
+                    service_delta = avg_service - target_service
+                    st.metric(
+                        "Avg Portfolio Service",
+                        f"{avg_service:.1f}%",
+                        delta=f"{service_delta:+.1f}%",
+                        delta_color="normal" if service_delta >= 0 else "inverse"
+                    )
+                with col4:
+                    st.metric("SKUs Analyzed", f"{len(analyzed_skus)}/{len(selected_items)}")
+                
+                # Portfolio risk heatmap
+                st.subheader("🎯 Portfolio Risk Assessment")
+                
+                portfolio_analyzer = PortfolioAnalyzer()
+                portfolio_health, critical_skus, medium_skus, healthy_skus = portfolio_analyzer.portfolio_risk_assessment(analyzed_skus)
+                
+                risk_col1, risk_col2, risk_col3 = st.columns(3)
+                
+                with risk_col1:
+                    st.markdown(f"<div class='sku-card'><h4 style='color: #dc3545;'>🔴 Critical Risk</h4><p style='font-size: 2rem;'>{len(critical_skus)}</p></div>", unsafe_allow_html=True)
+                    if critical_skus:
+                        st.write(", ".join(critical_skus))
+                
+                with risk_col2:
+                    st.markdown(f"<div class='sku-card'><h4 style='color: #ffc107;'>🟡 Medium Risk</h4><p style='font-size: 2rem;'>{len(medium_skus)}</p></div>", unsafe_allow_html=True)
+                    if medium_skus:
+                        st.write(", ".join(medium_skus))
+                
+                with risk_col3:
+                    st.markdown(f"<div class='sku-card'><h4 style='color: #28a745;'>🟢 Healthy</h4><p style='font-size: 2rem;'>{len(healthy_skus)}</p></div>", unsafe_allow_html=True)
+                    if healthy_skus:
+                        st.write(", ".join(healthy_skus))
+                
+                # SKU comparison chart
+                st.subheader("📊 SKU Performance Comparison")
+                
+                comparison_data = []
+                for sku, result in analyzed_skus.items():
+                    comparison_data.append({
+                        'SKU': sku,
+                        'Profit': result['sim_df']['profit'].mean(),
+                        'Service Level': result['sim_df']['service_level'].mean(),
+                        'Risk Score': result['analysis']['risk_analysis']['total_risk'],
+                        'Inventory Turns': result['sim_df']['inventory_turns'].mean()
+                    })
+                
+                comparison_df = pd.DataFrame(comparison_data)
+                
+                # Multi-metric comparison
+                fig_comparison = make_subplots(
+                    rows=2, cols=2,
+                    subplot_titles=('Profit by SKU', 'Service Level by SKU', 'Risk Score by SKU', 'Inventory Turns by SKU'),
+                    vertical_spacing=0.15
                 )
-            with col4:
-                st.metric("SKUs Analyzed", f"{len(analyzed_skus)}/{len(selected_items)}")
-            
-            # Portfolio risk heatmap
-            st.subheader("🎯 Portfolio Risk Assessment")
-            
-            portfolio_analyzer = PortfolioAnalyzer()
-            portfolio_health, critical_skus, medium_skus, healthy_skus = portfolio_analyzer.portfolio_risk_assessment(analyzed_skus)
-            
-            risk_col1, risk_col2, risk_col3 = st.columns(3)
-            
-            with risk_col1:
-                st.markdown(f"<div class='sku-card'><h4 style='color: #dc3545;'>🔴 Critical Risk</h4><p style='font-size: 2rem;'>{len(critical_skus)}</p></div>", unsafe_allow_html=True)
+                
+                fig_comparison.add_trace(
+                    go.Bar(x=comparison_df['SKU'], y=comparison_df['Profit'], name='Profit', marker_color='#1f77b4'),
+                    row=1, col=1
+                )
+                
+                fig_comparison.add_trace(
+                    go.Bar(x=comparison_df['SKU'], y=comparison_df['Service Level'], name='Service Level', marker_color='#2ca02c'),
+                    row=1, col=2
+                )
+                
+                # Color-code risk scores
+                risk_colors = ['#dc3545' if r > 60 else '#ffc107' if r > 30 else '#28a745' for r in comparison_df['Risk Score']]
+                fig_comparison.add_trace(
+                    go.Bar(x=comparison_df['SKU'], y=comparison_df['Risk Score'], name='Risk Score', marker_color=risk_colors),
+                    row=2, col=1
+                )
+                
+                fig_comparison.add_trace(
+                    go.Bar(x=comparison_df['SKU'], y=comparison_df['Inventory Turns'], name='Inventory Turns', marker_color='#ff7f0e'),
+                    row=2, col=2
+                )
+                
+                fig_comparison.update_yaxes(title_text="Profit ($)", row=1, col=1)
+                fig_comparison.update_yaxes(title_text="Service Level (%)", row=1, col=2)
+                fig_comparison.update_yaxes(title_text="Risk Score", row=2, col=1)
+                fig_comparison.update_yaxes(title_text="Turns (x)", row=2, col=2)
+                
+                fig_comparison.update_layout(height=600, showlegend=False)
+                st.plotly_chart(fig_comparison, use_container_width=True, key="portfolio_comparison_chart")
+                
+                # Portfolio-level recommendations
+                st.subheader("💡 Portfolio-Level Strategic Recommendations")
+                
                 if critical_skus:
-                    st.write(", ".join(critical_skus))
-            
-            with risk_col2:
-                st.markdown(f"<div class='sku-card'><h4 style='color: #ffc107;'>🟡 Medium Risk</h4><p style='font-size: 2rem;'>{len(medium_skus)}</p></div>", unsafe_allow_html=True)
-                if medium_skus:
-                    st.write(", ".join(medium_skus))
-            
-            with risk_col3:
-                st.markdown(f"<div class='sku-card'><h4 style='color: #28a745;'>🟢 Healthy</h4><p style='font-size: 2rem;'>{len(healthy_skus)}</p></div>", unsafe_allow_html=True)
-                if healthy_skus:
-                    st.write(", ".join(healthy_skus))
-            
-            # SKU comparison chart
-            st.subheader("📊 SKU Performance Comparison")
-            
-            comparison_data = []
-            for sku, result in analyzed_skus.items():
-                comparison_data.append({
-                    'SKU': sku,
-                    'Profit': result['sim_df']['profit'].mean(),
-                    'Service Level': result['sim_df']['service_level'].mean(),
-                    'Risk Score': result['analysis']['risk_analysis']['total_risk'],
-                    'Inventory Turns': result['sim_df']['inventory_turns'].mean()
-                })
-            
-            comparison_df = pd.DataFrame(comparison_data)
-            
-            # Multi-metric comparison
-            fig_comparison = make_subplots(
-                rows=2, cols=2,
-                subplot_titles=('Profit by SKU', 'Service Level by SKU', 'Risk Score by SKU', 'Inventory Turns by SKU'),
-                vertical_spacing=0.15
-            )
-            
-            fig_comparison.add_trace(
-                go.Bar(x=comparison_df['SKU'], y=comparison_df['Profit'], name='Profit', marker_color='#1f77b4'),
-                row=1, col=1
-            )
-            
-            fig_comparison.add_trace(
-                go.Bar(x=comparison_df['SKU'], y=comparison_df['Service Level'], name='Service Level', marker_color='#2ca02c'),
-                row=1, col=2
-            )
-            
-            # Color-code risk scores
-            risk_colors = ['#dc3545' if r > 60 else '#ffc107' if r > 30 else '#28a745' for r in comparison_df['Risk Score']]
-            fig_comparison.add_trace(
-                go.Bar(x=comparison_df['SKU'], y=comparison_df['Risk Score'], name='Risk Score', marker_color=risk_colors),
-                row=2, col=1
-            )
-            
-            fig_comparison.add_trace(
-                go.Bar(x=comparison_df['SKU'], y=comparison_df['Inventory Turns'], name='Inventory Turns', marker_color='#ff7f0e'),
-                row=2, col=2
-            )
-            
-            fig_comparison.update_yaxes(title_text="Profit ($)", row=1, col=1)
-            fig_comparison.update_yaxes(title_text="Service Level (%)", row=1, col=2)
-            fig_comparison.update_yaxes(title_text="Risk Score", row=2, col=1)
-            fig_comparison.update_yaxes(title_text="Turns (x)", row=2, col=2)
-            
-            fig_comparison.update_layout(height=600, showlegend=False)
-            st.plotly_chart(fig_comparison, use_container_width=True, key="portfolio_comparison_chart")
-            
-            # Portfolio-level recommendations
-            st.subheader("💡 Portfolio-Level Strategic Recommendations")
-            
-            if critical_skus:
-                st.markdown(f"""
-                <div class='recommendation-critical'>
-                <strong>🚨 CRITICAL PRIORITY:</strong> {len(critical_skus)} SKU(s) require immediate intervention<br>
-                <strong>Action:</strong> Focus resources on: {', '.join(critical_skus[:3])}{'...' if len(critical_skus) > 3 else ''}<br>
-                <strong>Impact:</strong> Prevent cascading portfolio failure
-                </div>
-                """, unsafe_allow_html=True)
-            
-            if avg_service < target_service:
-                st.markdown(f"""
-                <div class='recommendation-high'>
-                <strong>⚠️ Portfolio Service Gap:</strong> {target_service - avg_service:.1f}% below target<br>
-                <strong>Action:</strong> Implement tiered safety stock strategy (higher for Class A SKUs)<br>
-                <strong>Impact:</strong> Bring portfolio to target service level
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # ABC-based inventory optimization suggestion
-            sku_metrics = {sku: {'revenue': result['sim_df']['revenue'].mean()} for sku, result in analyzed_skus.items()}
-            abc_classes = portfolio_analyzer.classify_abc(sku_metrics)
-            
-            class_a_count = sum(1 for c in abc_classes.values() if c['class'] == 'A')
-            if class_a_count > 0:
-                st.markdown(f"""
-                <div class='recommendation'>
-                <strong>💰 ABC Optimization Opportunity:</strong><br>
-                <strong>Analysis:</strong> {class_a_count} Class A SKU(s) drive 70% of revenue<br>
-                <strong>Action:</strong> Prioritize safety stock investment in Class A items<br>
-                <strong>Impact:</strong> Maximum ROI on working capital deployment
-                </div>
-                """, unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div class='recommendation-critical'>
+                    <strong>🚨 CRITICAL PRIORITY:</strong> {len(critical_skus)} SKU(s) require immediate intervention<br>
+                    <strong>Action:</strong> Focus resources on: {', '.join(critical_skus[:3])}{'...' if len(critical_skus) > 3 else ''}<br>
+                    <strong>Impact:</strong> Prevent cascading portfolio failure
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                if avg_service < target_service:
+                    st.markdown(f"""
+                    <div class='recommendation-high'>
+                    <strong>⚠️ Portfolio Service Gap:</strong> {target_service - avg_service:.1f}% below target<br>
+                    <strong>Action:</strong> Implement tiered safety stock strategy (higher for Class A SKUs)<br>
+                    <strong>Impact:</strong> Bring portfolio to target service level
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # ABC-based inventory optimization suggestion
+                sku_metrics = {sku: {'revenue': result['sim_df']['revenue'].mean()} for sku, result in analyzed_skus.items()}
+                abc_classes = portfolio_analyzer.classify_abc(sku_metrics)
+                
+                class_a_count = sum(1 for c in abc_classes.values() if c['class'] == 'A')
+                if class_a_count > 0:
+                    st.markdown(f"""
+                    <div class='recommendation'>
+                    <strong>💰 ABC Optimization Opportunity:</strong><br>
+                    <strong>Analysis:</strong> {class_a_count} Class A SKU(s) drive 70% of revenue<br>
+                    <strong>Action:</strong> Prioritize safety stock investment in Class A items<br>
+                    <strong>Impact:</strong> Maximum ROI on working capital deployment
+                    </div>
+                    """, unsafe_allow_html=True)
     
     # ============================================================
     # TAB 2+: INDIVIDUAL SKU ANALYSIS
