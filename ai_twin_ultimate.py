@@ -47,7 +47,7 @@ of this software.
 
 For complete license terms, see LICENSE file.
 
-Version: 1.2.4
+Version: 1.2.5
 Last Updated: April 8, 2026
 
 ================================================================================
@@ -1596,6 +1596,17 @@ def main():
                             st.session_state[f"memory_{item}"]["executed"] = False
                             st.stop()
                         
+                        # Add prominent reconfigure button at top
+                        st.success("✅ Simulation Complete!")
+                        col_reconfig1, col_reconfig2, col_reconfig3 = st.columns([1, 2, 1])
+                        with col_reconfig2:
+                            if st.button("🔄 Reconfigure & Run New Simulation", key=f"reconfig_top_{item}", type="primary", use_container_width=True, help="Modify parameters and run a new simulation"):
+                                st.session_state[f"memory_{item}"]["executed"] = False
+                                st.session_state[f"memory_{item}"]["results"] = None
+                                if item in st.session_state.get('sku_results', {}):
+                                    del st.session_state['sku_results'][item]
+                                st.rerun()
+                        
                         st.divider()
                         
                         # --- PARSED SCENARIO ---
@@ -1865,6 +1876,18 @@ RECOMMENDATIONS:
                                 mime="text/csv",
                                 key=f"download_csv_{item}"
                             )
+                        
+                        # Add reconfigure button at bottom
+                        st.divider()
+                        st.markdown("### 🔄 Want to Try Different Parameters?")
+                        col_bottom1, col_bottom2, col_bottom3 = st.columns([1, 2, 1])
+                        with col_bottom2:
+                            if st.button("🔄 Reconfigure & Run New Simulation", key=f"reconfig_bottom_{item}", type="secondary", use_container_width=True, help="Clear results and modify parameters"):
+                                st.session_state[f"memory_{item}"]["executed"] = False
+                                st.session_state[f"memory_{item}"]["results"] = None
+                                if item in st.session_state.get('sku_results', {}):
+                                    del st.session_state['sku_results'][item]
+                                st.rerun()
                     
                     except Exception as e:
                         st.error(f"❌ Error displaying results: {str(e)}")
