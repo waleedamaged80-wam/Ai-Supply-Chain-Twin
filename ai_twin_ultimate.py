@@ -27,8 +27,8 @@ PROHIBITED USES:
 COMMERCIAL LICENSING:
 For commercial use, modifications, or distribution rights, contact:
   Waleed A. Mageed
-  Email: [waleed.amaged80@gmail.com]
-  LinkedIn: [www.linkedin.com/in/waleed-abdel-mageed-cscp-pmp®-b283b316]
+  Email: waleed.amaged80@gmail.com
+  LinkedIn: www.linkedin.com/in/waleed-abdel-mageed-cscp-pmp®-b283b316
 
 Available licenses: Enterprise, SaaS, White-label, Custom development
 
@@ -587,18 +587,20 @@ def main():
     with st.sidebar:
         st.header("📂 Data Center")
         uploaded_file = st.file_uploader("Upload Master Data CSV", type="csv", help="CSV with SKU-level demand data")
-        
-        # Check if data uploaded - but don't stop execution
-        data_uploaded = uploaded_file is not None
-        
+    
+    # Check if data uploaded (outside sidebar to be accessible everywhere)
+    data_uploaded = uploaded_file is not None
+    
+    with st.sidebar:
         if not data_uploaded:
             st.info("📤 Please upload your Master Data CSV to begin analysis.")
             st.markdown("**Required columns:**")
             st.markdown("- Item/SKU identifier")
             st.markdown("- Historical demand/sales data")
         
-        # If data uploaded, process it
-        if data_uploaded:
+    # If data uploaded, process it
+    if data_uploaded:
+        with st.sidebar:
             # Load data with encoding fallback
             try:
                 df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8')
@@ -678,15 +680,15 @@ def main():
             target_service = st.slider("Target Service Level (%)", 85, 99, 95, 1)
             
             st.divider()
-        else:
-            # No data uploaded - set defaults for User Guide display
-            selected_items = []
-            df = None
-            item_col = None
-            sales_col = None
-            sim_days = 90
-            iterations = 50
-            target_service = 95
+    else:
+        # No data uploaded - set defaults for User Guide display
+        selected_items = []
+        df = None
+        item_col = None
+        sales_col = None
+        sim_days = 90
+        iterations = 50
+        target_service = 95
     
     # ============================================================
     # MAIN INTERFACE: Portfolio Dashboard + Individual SKU Analysis
@@ -1077,14 +1079,15 @@ def main():
             - 🔧 **Custom Development**: Tailored features
             
             **Contact:**
-            - 📧 Email: [waleed.amaged80@gmail.com]
-            - 💼 LinkedIn: [www.linkedin.com/in/waleed-abdel-mageed-cscp-pmp®-b283b316]
+            - 📧 Email: waleed.amaged80@gmail.com
+            - 💼 LinkedIn: www.linkedin.com/in/waleed-abdel-mageed-cscp-pmp®-b283b316
             
             #### 🏆 About the Developer
             **Waleed A. Mageed**
-            - CSCP (Certified Supply Chain Professional)
+            - CSCP Fellow (Certified Supply Chain Professional)
             - PMP (Project Management Professional)
-            - Supply Chain & Procurement Professional
+            - 15+ years supply chain experience
+            - Expert in inventory optimization and AI decision systems
             
             ---
             
