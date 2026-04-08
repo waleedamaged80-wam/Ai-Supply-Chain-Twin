@@ -1301,519 +1301,519 @@ def main():
                 
                 # Extract item-specific data
                 item_data = df[df[item_col] == item]
-            
-            if item_data.empty:
-                st.warning(f"⚠️ No data found for SKU: {item}")
-                continue
-            
-            # Clean and validate demand data
-            raw_demand = pd.to_numeric(
-                item_data[sales_col].astype(str).str.replace(',', '').str.strip(),
-                errors='coerce'
-            ).dropna()
-            
-            # Remove zeros and negative values
-            raw_demand = raw_demand[raw_demand > 0]
-            
-            if raw_demand.empty:
-                st.error(f"❌ No valid positive demand data found for {item}. Please check your data.")
-                st.info(f"💡 Tip: Make sure the '{sales_col}' column contains numeric values > 0 for this SKU.")
-                continue
-            
-            if len(raw_demand) < 2:
-                st.warning(f"⚠️ Only {len(raw_demand)} valid data point for {item}. Need at least 2 records for statistical analysis.")
-                if len(raw_demand) == 1:
-                    st.info(f"Using single data point: {raw_demand.iloc[0]:.0f} units")
-                continue
-            
-            mean_demand = raw_demand.mean()
-            std_demand = raw_demand.std()
-            
-            # Validate data quality
-            if pd.isna(mean_demand) or mean_demand <= 0:
-                st.error(f"⚠️ Invalid demand data for {item}: No valid positive demand values found. Skipping this SKU.")
-                continue
-            
-            if pd.isna(std_demand) or std_demand < 0:
-                std_demand = mean_demand * 0.2  # Assume 20% variability if std is missing
-                st.warning(f"⚠️ Could not calculate std deviation for {item}. Using estimated value: {std_demand:.0f}")
-            
-            if len(raw_demand) < 2:
-                st.warning(f"⚠️ Only {len(raw_demand)} data point(s) for {item}. Need at least 2 for reliable analysis.")
-                std_demand = mean_demand * 0.2  # Default assumption
-            
-            # Check if we already have results
-            if f"memory_{item}" not in st.session_state:
-                st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
-            
-            show_config = not (st.session_state[f"memory_{item}"]["executed"] and st.session_state[f"memory_{item}"]["results"])
-            
-            # Only show configuration section if no results exist yet
-            if show_config:
-                st.info(f"📊 Historical Demand: μ={mean_demand:.0f}, σ={std_demand:.0f} (based on {len(raw_demand)} records)")
                 
-                # Sanity check for extremely high values
-                if mean_demand > 1_000_000:
-                    st.error(f"⚠️ WARNING: Average demand ({mean_demand:,.0f}) seems unrealistically high! Check your data or click Reset button below.")
+                if item_data.empty:
+                    st.warning(f"⚠️ No data found for SKU: {item}")
+                    continue
                 
-                # Add reset button to clear cached values
-                if st.button(f"🔄 Reset to Calculated Defaults", key=f"reset_{item}"):
-                    # Force recalculation by clearing session state for this SKU
-                    for key in list(st.session_state.keys()):
-                        if item in key:
-                            del st.session_state[key]
-                    st.rerun()
+                # Clean and validate demand data
+                raw_demand = pd.to_numeric(
+                    item_data[sales_col].astype(str).str.replace(',', '').str.strip(),
+                    errors='coerce'
+                ).dropna()
                 
-                # Configuration section
-                st.subheader("⚙️ Inventory Policy Configuration")
+                # Remove zeros and negative values
+                raw_demand = raw_demand[raw_demand > 0]
                 
-                config_col1, config_col2 = st.columns(2)
+                if raw_demand.empty:
+                    st.error(f"❌ No valid positive demand data found for {item}. Please check your data.")
+                    st.info(f"💡 Tip: Make sure the '{sales_col}' column contains numeric values > 0 for this SKU.")
+                    continue
                 
-                with config_col1:
-                    st.markdown("**Inventory Parameters**")
-                    
-                    # Single total lead time input
-                    lead_time = st.number_input(
-                        "Lead Time (days)",
-                        value=10,
-                        min_value=1,
-                        max_value=90,
-                        step=1,
-                        key=f"lead_time_{item}",
-                        help="Total days from order placement to delivery"
-                    )
-                    
-                    # Smart defaults using formulas with USER'S lead time
-                    z_score_95 = 1.65
-                    recommended_ss = int(z_score_95 * std_demand * np.sqrt(lead_time))
-                    
-                    # Calculate sensible default values
-                    default_ss = max(int(mean_demand * 5), recommended_ss)
-                    default_qty = int(mean_demand * 10)
-                    default_rop = int(mean_demand * (lead_time * 0.5))  # Half of lead time for ROP
-                    
-                    # Add validation to prevent unrealistic values
-                    max_reasonable_ss = int(mean_demand * 100)  # Max 100 days of demand
-                    max_reasonable_qty = int(mean_demand * 50)  # Max 50 days per order
-                    max_reasonable_rop = int(mean_demand * 20)  # Max 20 days for reorder
-                    
-                    safety_stock = st.number_input(
-                        "Safety Stock (units)",
-                        value=min(default_ss, max_reasonable_ss),
-                        min_value=0,
-                        max_value=max_reasonable_ss,
-                        step=500,
-                        key=f"ss_{item}",
-                        help=f"Recommended (95% service, {lead_time}-day LT): {recommended_ss:,}. Max: {max_reasonable_ss:,}"
-                    )
-                    
-                    order_qty = st.number_input(
-                        "Order Quantity (units)",
-                        value=min(default_qty, max_reasonable_qty),
-                        min_value=1,
-                        max_value=max_reasonable_qty,
-                        step=500,
-                        key=f"qty_{item}",
-                        help=f"Typical: 10-15 days of demand. Max allowed: {max_reasonable_qty:,}"
-                    )
-                    
-                    reorder_point = st.number_input(
-                        "Local Reorder Point",
-                        value=min(default_rop, max_reasonable_rop),
-                        min_value=0,
-                        max_value=max_reasonable_rop,
-                        step=100,
-                        key=f"rop_{item}",
-                        help=f"Trigger replenishment when below this level. Max allowed: {max_reasonable_rop:,}"
-                    )
+                if len(raw_demand) < 2:
+                    st.warning(f"⚠️ Only {len(raw_demand)} valid data point for {item}. Need at least 2 records for statistical analysis.")
+                    if len(raw_demand) == 1:
+                        st.info(f"Using single data point: {raw_demand.iloc[0]:.0f} units")
+                    continue
                 
-                with config_col2:
-                    st.markdown("**Cost & Pricing**")
-                    
-                    # Unit cost - allow decimals below $1
-                    unit_cost = st.number_input(
-                        "Unit Cost ($)",
-                        value=100.0,
-                        min_value=0.01,
-                        step=1.0,
-                        format="%.2f",
-                        key=f"unit_cost_{item}",
-                        help="What you pay your supplier per unit (can be less than $1)"
-                    )
-                    
-                    # Margin as percentage
-                    margin_pct = st.number_input(
-                        "Profit Margin (%)",
-                        value=50.0,
-                        min_value=0.0,
-                        max_value=1000.0,
-                        step=5.0,
-                        format="%.1f",
-                        key=f"margin_pct_{item}",
-                        help="Profit margin as % of unit cost. Selling price = unit cost × (1 + margin %)"
-                    )
-                    
-                    # Calculate margin in dollars
-                    margin = unit_cost * (margin_pct / 100)
-                    selling_price = unit_cost + margin
-                    
-                    st.caption(f"💰 Selling Price: ${selling_price:.2f}/unit (Cost: ${unit_cost:.2f} + Margin: ${margin:.2f})")
-                    
-                    # Advanced cost parameters
-                    with st.expander("⚙️ Additional Cost Settings"):
-                        holding_rate = st.slider(
-                            "Annual Holding Cost Rate (%)",
-                            min_value=10,
-                            max_value=50,
-                            value=25,
-                            step=5,
-                            key=f"holding_{item}",
-                            help="Cost of holding inventory as % of unit cost per year"
-                        )
-                        
-                        stockout_penalty = st.number_input(
-                            "Stockout Penalty ($)",
-                            value=200.0,
-                            min_value=0.0,
-                            step=25.0,
-                            format="%.2f",
-                            key=f"penalty_{item}",
-                            help="Cost of losing one sale (lost profit + customer dissatisfaction)"
-                        )
-                        
-                        transport_cost = st.number_input(
-                            "Transport Cost ($/unit)",
-                            value=2.0,
-                            min_value=0.0,
-                            step=0.5,
-                            format="%.2f",
-                            key=f"transport_{item}",
-                            help="Cost to ship one unit between locations"
-                        )
+                mean_demand = raw_demand.mean()
+                std_demand = raw_demand.std()
                 
-                # Scenario Planning moved to new section
-                st.markdown("**Scenario Planning**")
+                # Validate data quality
+                if pd.isna(mean_demand) or mean_demand <= 0:
+                    st.error(f"⚠️ Invalid demand data for {item}: No valid positive demand values found. Skipping this SKU.")
+                    continue
                 
-                scenario = st.text_area(
-                    "Describe Disruption Scenario:",
-                    value="Normal operations",
-                    height=100,
-                    key=f"scenario_{item}",
-                    help="Examples: 'Demand surge 20%', 'Supplier delay 7 days', 'Port strike 40% capacity loss'"
-                )
+                if pd.isna(std_demand) or std_demand < 0:
+                    std_demand = mean_demand * 0.2  # Assume 20% variability if std is missing
+                    st.warning(f"⚠️ Could not calculate std deviation for {item}. Using estimated value: {std_demand:.0f}")
                 
-                # Show example scenarios
-                with st.expander("💡 Example Scenarios"):
-                    st.markdown("""
-                    - *Demand surge 25% for 2 weeks*
-                    - *Factory delay 10 days*
-                    - *Port strike in Shanghai 7 day delay 40% capacity reduction*
-                    - *Volatile demand due to competitor stockout*
-                    - *Critical emergency requiring immediate shipment*
-                    """)
+                if len(raw_demand) < 2:
+                    st.warning(f"⚠️ Only {len(raw_demand)} data point(s) for {item}. Need at least 2 for reliable analysis.")
+                    std_demand = mean_demand * 0.2  # Default assumption
                 
-                # Execute simulation button
-                if st.button(f"🚀 Execute AI Twin Simulation", key=f"exec_{item}", type="primary", use_container_width=True):
+                # Check if we already have results
+                if f"memory_{item}" not in st.session_state:
+                    st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
+                
+                show_config = not (st.session_state[f"memory_{item}"]["executed"] and st.session_state[f"memory_{item}"]["results"])
+                
+                # Only show configuration section if no results exist yet
+                if show_config:
+                    st.info(f"📊 Historical Demand: μ={mean_demand:.0f}, σ={std_demand:.0f} (based on {len(raw_demand)} records)")
                     
-                    try:
-                        with st.spinner("🧠 Parsing scenario and running simulation..."):
-                            # Parse scenario
-                            parser = ScenarioParser()
-                            disruption_profile = parser.parse(scenario)
-                            
-                            # Configure simulation
-                            config = {
-                                'mean_demand': mean_demand,
-                                'std_demand': std_demand,
-                                'safety_stock': safety_stock,
-                                'order_qty': order_qty,
-                                'reorder_point_local': reorder_point,
-                                'unit_cost': unit_cost,
-                                'margin': margin,
-                                'penalty': stockout_penalty,
-                                'holding_rate': holding_rate,
-                                'transport_cost': transport_cost,
-                                'lead_time': lead_time
-                            }
-                            
-                            # Run simulation
-                            twin = SupplyChainTwin(config)
-                            sim_df, daily_traces = twin.simulate_scenario(
-                                disruption_profile,
-                                sim_days=sim_days,
-                                iterations=iterations
-                            )
-                            
-                            # AI decision analysis
-                            decision_engine = DecisionEngine()
-                            analysis = decision_engine.analyze_performance(
-                                sim_df,
-                                baseline_profit=None,
-                                target_service=target_service,
-                                mean_demand=mean_demand
-                            )
-                            
-                            # Store results
-                            st.session_state[f"memory_{item}"]["executed"] = True
-                            st.session_state[f"memory_{item}"]["results"] = {
-                                'disruption_profile': disruption_profile,
-                                'sim_df': sim_df,
-                                'daily_traces': daily_traces,
-                                'analysis': analysis,
-                                'config': config
-                            }
-                            
-                            # Store in global portfolio results
-                            st.session_state['sku_results'][item] = st.session_state[f"memory_{item}"]["results"]
-                        
-                        st.success("✅ Simulation complete!")
+                    # Sanity check for extremely high values
+                    if mean_demand > 1_000_000:
+                        st.error(f"⚠️ WARNING: Average demand ({mean_demand:,.0f}) seems unrealistically high! Check your data or click Reset button below.")
+                    
+                    # Add reset button to clear cached values
+                    if st.button(f"🔄 Reset to Calculated Defaults", key=f"reset_{item}"):
+                        # Force recalculation by clearing session state for this SKU
+                        for key in list(st.session_state.keys()):
+                            if item in key:
+                                del st.session_state[key]
                         st.rerun()
+                    
+                    # Configuration section
+                    st.subheader("⚙️ Inventory Policy Configuration")
+                    
+                    config_col1, config_col2 = st.columns(2)
+                    
+                    with config_col1:
+                        st.markdown("**Inventory Parameters**")
                         
-                    except Exception as e:
-                        st.error(f"❌ Error during simulation: {str(e)}")
-                        st.error("Please check your configuration and try again.")
-                        with st.expander("🔍 Technical Details"):
-                            st.code(f"{type(e).__name__}: {str(e)}")
-                            import traceback
-                        st.code(traceback.format_exc())
-            
-            # Display results if available
-            mem = st.session_state[f"memory_{item}"]
-            
-            if mem["executed"] and mem["results"]:
-                try:
-                    results = mem["results"]
-                    disruption_profile = results.get('disruption_profile', {})
-                    sim_df = results.get('sim_df', pd.DataFrame())
-                    daily_traces = results.get('daily_traces', {})
-                    analysis = results.get('analysis', {})
-                    
-                    # Validate that we have the necessary data
-                    if sim_df.empty or not analysis:
-                        st.warning("⚠️ Incomplete simulation results. Please re-run the simulation.")
-                        st.session_state[f"memory_{item}"]["executed"] = False
-                        st.stop()
-                    
-                    st.divider()
-                    
-                    # --- PARSED SCENARIO ---
-                    with st.expander("📋 Parsed Disruption Profile", expanded=True):  # Changed to expanded=True so users see it
-                        profile_col1, profile_col2, profile_col3, profile_col4 = st.columns(4)
-                        with profile_col1:
-                            st.metric("Demand Shift", f"{disruption_profile.get('demand_shift', 0):+}%")
-                        with profile_col2:
-                            st.metric("Lead Time Impact", f"+{disruption_profile.get('lead_time_shift', 0)} days")
-                        with profile_col3:
-                            st.metric("Supplier Reliability", f"{disruption_profile.get('supplier_reliability', 100)}%")
-                        with profile_col4:
-                            # Get urgency from TWO sources and show the highest priority
-                            parsed_urgency = disruption_profile.get('urgency', 'Normal')
-                            risk_level = analysis.get('risk_analysis', {}).get('risk_level', 'Low')
-                            
-                            # Map risk_level to urgency (Critical > Medium > Low/Normal)
-                            risk_urgency_map = {
-                                'Critical': 'Critical',
-                                'Medium': 'Medium',
-                                'Low': 'Normal'
-                            }
-                            risk_urgency = risk_urgency_map.get(risk_level, 'Normal')
-                            
-                            # Take the HIGHER urgency (Critical > Medium > Normal)
-                            urgency_priority = {'Critical': 3, 'Medium': 2, 'Normal': 1}
-                            if urgency_priority.get(risk_urgency, 1) > urgency_priority.get(parsed_urgency, 1):
-                                final_urgency = risk_urgency
-                                urgency_source = "(Risk-Based)"
-                            else:
-                                final_urgency = parsed_urgency
-                                urgency_source = "(Keyword-Based)"
-                            
-                            urgency_class = {
-                                'Critical': 'critical-status',
-                                'Medium': 'medium-status',
-                                'Normal': 'healthy-status'
-                            }.get(final_urgency, 'medium-status')
-                            
-                            st.markdown(f"<div class='{urgency_class}'>Urgency: {final_urgency}</div>", unsafe_allow_html=True)
-                            st.caption(f"Source: {urgency_source}")
-                        
-                        # Debug info (can be removed after testing)
-                        if st.checkbox("Show Debug Info", key=f"debug_{item}"):
-                            st.code(f"Scenario text: {scenario}")
-                            st.code(f"Parsed urgency: {parsed_urgency}")
-                            st.code(f"Risk-based urgency: {risk_urgency} (from risk_level={risk_level})")
-                            st.code(f"Final urgency: {final_urgency}")
-                            st.code(f"Full parsed profile: {json.dumps(disruption_profile, indent=2)}")
-                    
-                    # --- EXECUTIVE DIRECTIVE ---
-                    st.subheader("🎯 Executive Strategic Directive")
-                    
-                    # Create decision engine instance
-                    decision_engine = DecisionEngine()
-                    directive = decision_engine.generate_executive_directive(analysis, disruption_profile)
-                    
-                    status_class = {
-                        '🔴 CRITICAL': 'critical-status',
-                        '🟡 CAUTION': 'medium-status',
-                        '🟢 STABLE': 'healthy-status'
-                    }[directive['status']]
-                    
-                    st.markdown(f"""
-                    <div class='sku-card'>
-                    <div class='{status_class}'>{directive['status']}</div>
-                    <h3>{directive['directive']}</h3>
-                    <p><strong>Primary Action:</strong> {directive['primary_action']}</p>
-                    <p><strong>Timeline:</strong> {directive['timeline']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # --- PERFORMANCE METRICS ---
-                    st.subheader(f"📊 Performance Metrics for {item}")
-                    st.caption(f"⚠️ These metrics are for THIS SKU ONLY, not the whole portfolio")
-                    
-                    avg_profit = sim_df['profit'].mean()
-                    avg_service = sim_df['service_level'].mean()
-                    profit_std = sim_df['profit'].std()
-                    avg_turns = sim_df['inventory_turns'].mean()
-                    avg_lost_sales = sim_df['lost_sales'].mean()
-                    
-                    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
-                    
-                    with metric_col1:
-                        st.metric("Average Profit", f"${avg_profit:,.0f}", delta=f"±${profit_std:,.0f}")
-                    with metric_col2:
-                        service_delta = avg_service - target_service
-                        st.metric(
-                            "Service Level",
-                            f"{avg_service:.1f}%",
-                            delta=f"{service_delta:+.1f}%",
-                            delta_color="normal" if service_delta >= 0 else "inverse"
+                        # Single total lead time input
+                        lead_time = st.number_input(
+                            "Lead Time (days)",
+                            value=10,
+                            min_value=1,
+                            max_value=90,
+                            step=1,
+                            key=f"lead_time_{item}",
+                            help="Total days from order placement to delivery"
                         )
-                    with metric_col3:
-                        st.metric("Inventory Turns", f"{avg_turns:.1f}x")
-                    with metric_col4:
-                        st.metric("Avg Lost Sales", f"{avg_lost_sales:,.0f} units")
+                        
+                        # Smart defaults using formulas with USER'S lead time
+                        z_score_95 = 1.65
+                        recommended_ss = int(z_score_95 * std_demand * np.sqrt(lead_time))
+                        
+                        # Calculate sensible default values
+                        default_ss = max(int(mean_demand * 5), recommended_ss)
+                        default_qty = int(mean_demand * 10)
+                        default_rop = int(mean_demand * (lead_time * 0.5))  # Half of lead time for ROP
+                        
+                        # Add validation to prevent unrealistic values
+                        max_reasonable_ss = int(mean_demand * 100)  # Max 100 days of demand
+                        max_reasonable_qty = int(mean_demand * 50)  # Max 50 days per order
+                        max_reasonable_rop = int(mean_demand * 20)  # Max 20 days for reorder
+                        
+                        safety_stock = st.number_input(
+                            "Safety Stock (units)",
+                            value=min(default_ss, max_reasonable_ss),
+                            min_value=0,
+                            max_value=max_reasonable_ss,
+                            step=500,
+                            key=f"ss_{item}",
+                            help=f"Recommended (95% service, {lead_time}-day LT): {recommended_ss:,}. Max: {max_reasonable_ss:,}"
+                        )
+                        
+                        order_qty = st.number_input(
+                            "Order Quantity (units)",
+                            value=min(default_qty, max_reasonable_qty),
+                            min_value=1,
+                            max_value=max_reasonable_qty,
+                            step=500,
+                            key=f"qty_{item}",
+                            help=f"Typical: 10-15 days of demand. Max allowed: {max_reasonable_qty:,}"
+                        )
+                        
+                        reorder_point = st.number_input(
+                            "Local Reorder Point",
+                            value=min(default_rop, max_reasonable_rop),
+                            min_value=0,
+                            max_value=max_reasonable_rop,
+                            step=100,
+                            key=f"rop_{item}",
+                            help=f"Trigger replenishment when below this level. Max allowed: {max_reasonable_rop:,}"
+                        )
                     
-                    # Risk score with breakdown
-                    risk_analysis = analysis['risk_analysis']
-                    st.metric(
-                        "🎯 Overall Risk Score",
-                        f"{risk_analysis['total_risk']:.0f}/100",
-                        help=f"Service Gap: {risk_analysis['components']['service_gap']:.0f} | Volatility: {risk_analysis['components']['profit_volatility']:.0f} | Stockout: {risk_analysis['components']['stockout_cost']:.0f}"
+                    with config_col2:
+                        st.markdown("**Cost & Pricing**")
+                        
+                        # Unit cost - allow decimals below $1
+                        unit_cost = st.number_input(
+                            "Unit Cost ($)",
+                            value=100.0,
+                            min_value=0.01,
+                            step=1.0,
+                            format="%.2f",
+                            key=f"unit_cost_{item}",
+                            help="What you pay your supplier per unit (can be less than $1)"
+                        )
+                        
+                        # Margin as percentage
+                        margin_pct = st.number_input(
+                            "Profit Margin (%)",
+                            value=50.0,
+                            min_value=0.0,
+                            max_value=1000.0,
+                            step=5.0,
+                            format="%.1f",
+                            key=f"margin_pct_{item}",
+                            help="Profit margin as % of unit cost. Selling price = unit cost × (1 + margin %)"
+                        )
+                        
+                        # Calculate margin in dollars
+                        margin = unit_cost * (margin_pct / 100)
+                        selling_price = unit_cost + margin
+                        
+                        st.caption(f"💰 Selling Price: ${selling_price:.2f}/unit (Cost: ${unit_cost:.2f} + Margin: ${margin:.2f})")
+                        
+                        # Advanced cost parameters
+                        with st.expander("⚙️ Additional Cost Settings"):
+                            holding_rate = st.slider(
+                                "Annual Holding Cost Rate (%)",
+                                min_value=10,
+                                max_value=50,
+                                value=25,
+                                step=5,
+                                key=f"holding_{item}",
+                                help="Cost of holding inventory as % of unit cost per year"
+                            )
+                            
+                            stockout_penalty = st.number_input(
+                                "Stockout Penalty ($)",
+                                value=200.0,
+                                min_value=0.0,
+                                step=25.0,
+                                format="%.2f",
+                                key=f"penalty_{item}",
+                                help="Cost of losing one sale (lost profit + customer dissatisfaction)"
+                            )
+                            
+                            transport_cost = st.number_input(
+                                "Transport Cost ($/unit)",
+                                value=2.0,
+                                min_value=0.0,
+                                step=0.5,
+                                format="%.2f",
+                                key=f"transport_{item}",
+                                help="Cost to ship one unit between locations"
+                            )
+                    
+                    # Scenario Planning moved to new section
+                    st.markdown("**Scenario Planning**")
+                    
+                    scenario = st.text_area(
+                        "Describe Disruption Scenario:",
+                        value="Normal operations",
+                        height=100,
+                        key=f"scenario_{item}",
+                        help="Examples: 'Demand surge 20%', 'Supplier delay 7 days', 'Port strike 40% capacity loss'"
                     )
                     
-                    # --- VISUALIZATIONS ---
-                    st.subheader("📈 Performance Analytics")
+                    # Show example scenarios
+                    with st.expander("💡 Example Scenarios"):
+                        st.markdown("""
+                        - *Demand surge 25% for 2 weeks*
+                        - *Factory delay 10 days*
+                        - *Port strike in Shanghai 7 day delay 40% capacity reduction*
+                        - *Volatile demand due to competitor stockout*
+                        - *Critical emergency requiring immediate shipment*
+                        """)
+                    
+                    # Execute simulation button
+                    if st.button(f"🚀 Execute AI Twin Simulation", key=f"exec_{item}", type="primary", use_container_width=True):
+                        
+                        try:
+                            with st.spinner("🧠 Parsing scenario and running simulation..."):
+                                # Parse scenario
+                                parser = ScenarioParser()
+                                disruption_profile = parser.parse(scenario)
+                                
+                                # Configure simulation
+                                config = {
+                                    'mean_demand': mean_demand,
+                                    'std_demand': std_demand,
+                                    'safety_stock': safety_stock,
+                                    'order_qty': order_qty,
+                                    'reorder_point_local': reorder_point,
+                                    'unit_cost': unit_cost,
+                                    'margin': margin,
+                                    'penalty': stockout_penalty,
+                                    'holding_rate': holding_rate,
+                                    'transport_cost': transport_cost,
+                                    'lead_time': lead_time
+                                }
+                                
+                                # Run simulation
+                                twin = SupplyChainTwin(config)
+                                sim_df, daily_traces = twin.simulate_scenario(
+                                    disruption_profile,
+                                    sim_days=sim_days,
+                                    iterations=iterations
+                                )
+                                
+                                # AI decision analysis
+                                decision_engine = DecisionEngine()
+                                analysis = decision_engine.analyze_performance(
+                                    sim_df,
+                                    baseline_profit=None,
+                                    target_service=target_service,
+                                    mean_demand=mean_demand
+                                )
+                                
+                                # Store results
+                                st.session_state[f"memory_{item}"]["executed"] = True
+                                st.session_state[f"memory_{item}"]["results"] = {
+                                    'disruption_profile': disruption_profile,
+                                    'sim_df': sim_df,
+                                    'daily_traces': daily_traces,
+                                    'analysis': analysis,
+                                    'config': config
+                                }
+                                
+                                # Store in global portfolio results
+                                st.session_state['sku_results'][item] = st.session_state[f"memory_{item}"]["results"]
+                            
+                            st.success("✅ Simulation complete!")
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error during simulation: {str(e)}")
+                            st.error("Please check your configuration and try again.")
+                            with st.expander("🔍 Technical Details"):
+                                st.code(f"{type(e).__name__}: {str(e)}")
+                                import traceback
+                            st.code(traceback.format_exc())
                 
-                    # Profit distribution
-                    fig_profit = go.Figure()
-                    fig_profit.add_trace(go.Histogram(
-                    x=sim_df['profit'],
-                    nbinsx=30,
-                    name='Profit Distribution',
-                    marker_color='#1f77b4'
-                    ))
-                    fig_profit.add_vline(
-                    x=avg_profit,
-                    line_dash="dash",
-                    line_color="red",
-                    annotation_text=f"Mean: ${avg_profit:,.0f}"
-                    )
-                    fig_profit.update_layout(
-                    title="Profit Distribution (Monte Carlo)",
-                    xaxis_title="Net Profit ($)",
-                    yaxis_title="Frequency",
-                    height=300
-                    )
-                    st.plotly_chart(fig_profit, use_container_width=True, key=f"profit_chart_{item}")
-                    
-                    # Inventory dynamics
-                    fig_inv = go.Figure()
-                    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
-                    
-                    for i, (iter_name, trace_data) in enumerate(daily_traces.items()):
-                        if trace_data:
-                            days = [d['day'] for d in trace_data]
-                            local_inv = [d['local'] for d in trace_data]
-                            fig_inv.add_trace(go.Scatter(
-                                x=days,
-                                y=local_inv,
-                                mode='lines',
-                                name=f'Simulation {i+1}',
-                                line=dict(color=colors[i], width=1.5),
-                                opacity=0.7
-                            ))
-                    
-                    fig_inv.add_hrect(
-                    y0=0, y1=mean_demand * 2,
-                    fillcolor="red", opacity=0.1,
-                    annotation_text="High Stockout Risk Zone",
-                    annotation_position="top left"
-                    )
-                    
-                    fig_inv.update_layout(
-                    title="Inventory Dynamics - Local DC (Sample Paths)",
-                    xaxis_title="Day",
-                    yaxis_title="Inventory Level (units)",
-                    height=400,
-                    hovermode='x unified'
-                    )
-                    st.plotly_chart(fig_inv, use_container_width=True, key=f"inventory_chart_{item}")
-                    
-                    # Service level box plot
-                    fig_service = go.Figure()
-                    fig_service.add_trace(go.Box(
-                    y=sim_df['service_level'],
-                    name='Service Level',
-                    marker_color='#2ca02c',
-                    boxmean='sd'
-                    ))
-                    fig_service.add_hline(
-                    y=target_service,
-                    line_dash="dash",
-                    line_color="red",
-                    annotation_text=f"Target: {target_service}%"
-                    )
-                    fig_service.update_layout(
-                    title="Service Level Variability",
-                    yaxis_title="Service Level (%)",
-                    height=300
-                    )
-                    st.plotly_chart(fig_service, use_container_width=True, key=f"service_chart_{item}")
-                    
-                    # --- AI INSIGHTS & RECOMMENDATIONS ---
-                    st.subheader("💡 AI-Generated Insights & Recommendations")
-                    
-                    if analysis['insights']:
-                        st.markdown("**Key Insights:**")
-                        for insight in analysis['insights']:
-                            st.markdown(f"<div class='insight-box'>{insight}</div>", unsafe_allow_html=True)
-                    
-                    if analysis['recommendations']:
-                        st.markdown("**Recommended Actions:**")
-                        for rec in analysis['recommendations']:
-                            rec_class = {
-                            'Critical': 'recommendation-critical',
-                            'High': 'recommendation-high',
-                            'Medium': 'recommendation',
-                            'Low': 'recommendation'
-                        }.get(rec['priority'], 'recommendation')
+                # Display results if available
+                mem = st.session_state[f"memory_{item}"]
+                
+                if mem["executed"] and mem["results"]:
+                    try:
+                        results = mem["results"]
+                        disruption_profile = results.get('disruption_profile', {})
+                        sim_df = results.get('sim_df', pd.DataFrame())
+                        daily_traces = results.get('daily_traces', {})
+                        analysis = results.get('analysis', {})
+                        
+                        # Validate that we have the necessary data
+                        if sim_df.empty or not analysis:
+                            st.warning("⚠️ Incomplete simulation results. Please re-run the simulation.")
+                            st.session_state[f"memory_{item}"]["executed"] = False
+                            st.stop()
+                        
+                        st.divider()
+                        
+                        # --- PARSED SCENARIO ---
+                        with st.expander("📋 Parsed Disruption Profile", expanded=True):  # Changed to expanded=True so users see it
+                            profile_col1, profile_col2, profile_col3, profile_col4 = st.columns(4)
+                            with profile_col1:
+                                st.metric("Demand Shift", f"{disruption_profile.get('demand_shift', 0):+}%")
+                            with profile_col2:
+                                st.metric("Lead Time Impact", f"+{disruption_profile.get('lead_time_shift', 0)} days")
+                            with profile_col3:
+                                st.metric("Supplier Reliability", f"{disruption_profile.get('supplier_reliability', 100)}%")
+                            with profile_col4:
+                                # Get urgency from TWO sources and show the highest priority
+                                parsed_urgency = disruption_profile.get('urgency', 'Normal')
+                                risk_level = analysis.get('risk_analysis', {}).get('risk_level', 'Low')
+                                
+                                # Map risk_level to urgency (Critical > Medium > Low/Normal)
+                                risk_urgency_map = {
+                                    'Critical': 'Critical',
+                                    'Medium': 'Medium',
+                                    'Low': 'Normal'
+                                }
+                                risk_urgency = risk_urgency_map.get(risk_level, 'Normal')
+                                
+                                # Take the HIGHER urgency (Critical > Medium > Normal)
+                                urgency_priority = {'Critical': 3, 'Medium': 2, 'Normal': 1}
+                                if urgency_priority.get(risk_urgency, 1) > urgency_priority.get(parsed_urgency, 1):
+                                    final_urgency = risk_urgency
+                                    urgency_source = "(Risk-Based)"
+                                else:
+                                    final_urgency = parsed_urgency
+                                    urgency_source = "(Keyword-Based)"
+                                
+                                urgency_class = {
+                                    'Critical': 'critical-status',
+                                    'Medium': 'medium-status',
+                                    'Normal': 'healthy-status'
+                                }.get(final_urgency, 'medium-status')
+                                
+                                st.markdown(f"<div class='{urgency_class}'>Urgency: {final_urgency}</div>", unsafe_allow_html=True)
+                                st.caption(f"Source: {urgency_source}")
+                            
+                            # Debug info (can be removed after testing)
+                            if st.checkbox("Show Debug Info", key=f"debug_{item}"):
+                                st.code(f"Scenario text: {scenario}")
+                                st.code(f"Parsed urgency: {parsed_urgency}")
+                                st.code(f"Risk-based urgency: {risk_urgency} (from risk_level={risk_level})")
+                                st.code(f"Final urgency: {final_urgency}")
+                                st.code(f"Full parsed profile: {json.dumps(disruption_profile, indent=2)}")
+                        
+                        # --- EXECUTIVE DIRECTIVE ---
+                        st.subheader("🎯 Executive Strategic Directive")
+                        
+                        # Create decision engine instance
+                        decision_engine = DecisionEngine()
+                        directive = decision_engine.generate_executive_directive(analysis, disruption_profile)
+                        
+                        status_class = {
+                            '🔴 CRITICAL': 'critical-status',
+                            '🟡 CAUTION': 'medium-status',
+                            '🟢 STABLE': 'healthy-status'
+                        }[directive['status']]
                         
                         st.markdown(f"""
-                        <div class='{rec_class}'>
-                        <strong>[{rec['priority']} Priority] {rec['action']}</strong><br>
-                        📈 <em>Impact:</em> {rec['impact']}<br>
-                        💰 <em>Cost:</em> {rec['cost']}
+                        <div class='sku-card'>
+                        <div class='{status_class}'>{directive['status']}</div>
+                        <h3>{directive['directive']}</h3>
+                        <p><strong>Primary Action:</strong> {directive['primary_action']}</p>
+                        <p><strong>Timeline:</strong> {directive['timeline']}</p>
                         </div>
                         """, unsafe_allow_html=True)
+                        
+                        # --- PERFORMANCE METRICS ---
+                        st.subheader(f"📊 Performance Metrics for {item}")
+                        st.caption(f"⚠️ These metrics are for THIS SKU ONLY, not the whole portfolio")
+                        
+                        avg_profit = sim_df['profit'].mean()
+                        avg_service = sim_df['service_level'].mean()
+                        profit_std = sim_df['profit'].std()
+                        avg_turns = sim_df['inventory_turns'].mean()
+                        avg_lost_sales = sim_df['lost_sales'].mean()
+                        
+                        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+                        
+                        with metric_col1:
+                            st.metric("Average Profit", f"${avg_profit:,.0f}", delta=f"±${profit_std:,.0f}")
+                        with metric_col2:
+                            service_delta = avg_service - target_service
+                            st.metric(
+                                "Service Level",
+                                f"{avg_service:.1f}%",
+                                delta=f"{service_delta:+.1f}%",
+                                delta_color="normal" if service_delta >= 0 else "inverse"
+                            )
+                        with metric_col3:
+                            st.metric("Inventory Turns", f"{avg_turns:.1f}x")
+                        with metric_col4:
+                            st.metric("Avg Lost Sales", f"{avg_lost_sales:,.0f} units")
+                        
+                        # Risk score with breakdown
+                        risk_analysis = analysis['risk_analysis']
+                        st.metric(
+                            "🎯 Overall Risk Score",
+                            f"{risk_analysis['total_risk']:.0f}/100",
+                            help=f"Service Gap: {risk_analysis['components']['service_gap']:.0f} | Volatility: {risk_analysis['components']['profit_volatility']:.0f} | Stockout: {risk_analysis['components']['stockout_cost']:.0f}"
+                        )
+                        
+                        # --- VISUALIZATIONS ---
+                        st.subheader("📈 Performance Analytics")
                     
-                    # --- EXPORT RESULTS ---
-                    st.subheader("📥 Export Results")
-                    
-                    export_col1, export_col2 = st.columns(2)
-                    
-                    with export_col1:
-                        # Summary report
-                        summary_report = f"""
+                        # Profit distribution
+                        fig_profit = go.Figure()
+                        fig_profit.add_trace(go.Histogram(
+                        x=sim_df['profit'],
+                        nbinsx=30,
+                        name='Profit Distribution',
+                        marker_color='#1f77b4'
+                        ))
+                        fig_profit.add_vline(
+                        x=avg_profit,
+                        line_dash="dash",
+                        line_color="red",
+                        annotation_text=f"Mean: ${avg_profit:,.0f}"
+                        )
+                        fig_profit.update_layout(
+                        title="Profit Distribution (Monte Carlo)",
+                        xaxis_title="Net Profit ($)",
+                        yaxis_title="Frequency",
+                        height=300
+                        )
+                        st.plotly_chart(fig_profit, use_container_width=True, key=f"profit_chart_{item}")
+                        
+                        # Inventory dynamics
+                        fig_inv = go.Figure()
+                        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
+                        
+                        for i, (iter_name, trace_data) in enumerate(daily_traces.items()):
+                            if trace_data:
+                                days = [d['day'] for d in trace_data]
+                                local_inv = [d['local'] for d in trace_data]
+                                fig_inv.add_trace(go.Scatter(
+                                    x=days,
+                                    y=local_inv,
+                                    mode='lines',
+                                    name=f'Simulation {i+1}',
+                                    line=dict(color=colors[i], width=1.5),
+                                    opacity=0.7
+                                ))
+                        
+                        fig_inv.add_hrect(
+                        y0=0, y1=mean_demand * 2,
+                        fillcolor="red", opacity=0.1,
+                        annotation_text="High Stockout Risk Zone",
+                        annotation_position="top left"
+                        )
+                        
+                        fig_inv.update_layout(
+                        title="Inventory Dynamics - Local DC (Sample Paths)",
+                        xaxis_title="Day",
+                        yaxis_title="Inventory Level (units)",
+                        height=400,
+                        hovermode='x unified'
+                        )
+                        st.plotly_chart(fig_inv, use_container_width=True, key=f"inventory_chart_{item}")
+                        
+                        # Service level box plot
+                        fig_service = go.Figure()
+                        fig_service.add_trace(go.Box(
+                        y=sim_df['service_level'],
+                        name='Service Level',
+                        marker_color='#2ca02c',
+                        boxmean='sd'
+                        ))
+                        fig_service.add_hline(
+                        y=target_service,
+                        line_dash="dash",
+                        line_color="red",
+                        annotation_text=f"Target: {target_service}%"
+                        )
+                        fig_service.update_layout(
+                        title="Service Level Variability",
+                        yaxis_title="Service Level (%)",
+                        height=300
+                        )
+                        st.plotly_chart(fig_service, use_container_width=True, key=f"service_chart_{item}")
+                        
+                        # --- AI INSIGHTS & RECOMMENDATIONS ---
+                        st.subheader("💡 AI-Generated Insights & Recommendations")
+                        
+                        if analysis['insights']:
+                            st.markdown("**Key Insights:**")
+                            for insight in analysis['insights']:
+                                st.markdown(f"<div class='insight-box'>{insight}</div>", unsafe_allow_html=True)
+                        
+                        if analysis['recommendations']:
+                            st.markdown("**Recommended Actions:**")
+                            for rec in analysis['recommendations']:
+                                rec_class = {
+                                'Critical': 'recommendation-critical',
+                                'High': 'recommendation-high',
+                                'Medium': 'recommendation',
+                                'Low': 'recommendation'
+                            }.get(rec['priority'], 'recommendation')
+                            
+                            st.markdown(f"""
+                            <div class='{rec_class}'>
+                            <strong>[{rec['priority']} Priority] {rec['action']}</strong><br>
+                            📈 <em>Impact:</em> {rec['impact']}<br>
+                            💰 <em>Cost:</em> {rec['cost']}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # --- EXPORT RESULTS ---
+                        st.subheader("📥 Export Results")
+                        
+                        export_col1, export_col2 = st.columns(2)
+                        
+                        with export_col1:
+                            # Summary report
+                            summary_report = f"""
 AI SUPPLY CHAIN TWIN - SIMULATION REPORT
 SKU: {item}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -1843,44 +1843,44 @@ KEY INSIGHTS:
 
 RECOMMENDATIONS:
 {chr(10).join(['- [' + rec['priority'] + '] ' + rec['action'] + ': ' + rec['impact'] for rec in analysis['recommendations']])}
-                        """
+                            """
+                            
+                            st.download_button(
+                                label="📄 Download Summary Report",
+                                data=summary_report,
+                                file_name=f"ai_twin_report_{item}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                                mime="text/plain",
+                                key=f"download_summary_{item}"
+                            )
                         
-                        st.download_button(
-                            label="📄 Download Summary Report",
-                            data=summary_report,
-                            file_name=f"ai_twin_report_{item}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                            mime="text/plain",
-                            key=f"download_summary_{item}"
-                        )
+                        with export_col2:
+                            # Detailed CSV
+                            csv_data = sim_df.to_csv(index=False)
+                            st.download_button(
+                                label="📊 Download Detailed Results (CSV)",
+                                data=csv_data,
+                                file_name=f"simulation_results_{item}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                mime="text/csv",
+                                key=f"download_csv_{item}"
+                            )
                     
-                    with export_col2:
-                        # Detailed CSV
-                        csv_data = sim_df.to_csv(index=False)
-                        st.download_button(
-                            label="📊 Download Detailed Results (CSV)",
-                            data=csv_data,
-                            file_name=f"simulation_results_{item}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                            mime="text/csv",
-                            key=f"download_csv_{item}"
-                        )
+                    except Exception as e:
+                        st.error(f"❌ Error displaying results: {str(e)}")
+                        st.warning("The simulation results may be incomplete. Please try re-running the simulation.")
+                        col_err1, col_err2 = st.columns(2)
+                        with col_err1:
+                            if st.button("🔄 Clear Results & Retry", key=f"clear_{item}"):
+                                st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
+                                if item in st.session_state.get('sku_results', {}):
+                                    del st.session_state['sku_results'][item]
+                                st.rerun()
+                        with st.expander("🔍 Technical Details (for debugging)"):
+                            st.code(f"{type(e).__name__}: {str(e)}")
+                            import traceback
+                            st.code(traceback.format_exc())
                 
-                except Exception as e:
-                    st.error(f"❌ Error displaying results: {str(e)}")
-                    st.warning("The simulation results may be incomplete. Please try re-running the simulation.")
-                    col_err1, col_err2 = st.columns(2)
-                    with col_err1:
-                        if st.button("🔄 Clear Results & Retry", key=f"clear_{item}"):
-                            st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
-                            if item in st.session_state.get('sku_results', {}):
-                                del st.session_state['sku_results'][item]
-                            st.rerun()
-                    with st.expander("🔍 Technical Details (for debugging)"):
-                        st.code(f"{type(e).__name__}: {str(e)}")
-                        import traceback
-                        st.code(traceback.format_exc())
-            
-            else:
-                st.info("👆 Configure your inventory policy and scenario above, then click 'Execute AI Twin Simulation'")
+                else:
+                    st.info("👆 Configure your inventory policy and scenario above, then click 'Execute AI Twin Simulation'")
 
 if __name__ == "__main__":
     main()
