@@ -28,7 +28,7 @@ COMMERCIAL LICENSING:
 For commercial use, modifications, or distribution rights, contact:
   Waleed A. Mageed
   Email: [waleed.amaged80@gmail.com]
-  
+  LinkedIn: [www.linkedin.com/in/waleed-abdel-mageed-cscp-pmp®-b283b316]
 
 Available licenses: Enterprise, SaaS, White-label, Custom development
 
@@ -588,92 +588,105 @@ def main():
         st.header("📂 Data Center")
         uploaded_file = st.file_uploader("Upload Master Data CSV", type="csv", help="CSV with SKU-level demand data")
         
-        if not uploaded_file:
-            st.info("📤 Please upload your Master Data CSV to begin.")
+        # Check if data uploaded - but don't stop execution
+        data_uploaded = uploaded_file is not None
+        
+        if not data_uploaded:
+            st.info("📤 Please upload your Master Data CSV to begin analysis.")
             st.markdown("**Required columns:**")
             st.markdown("- Item/SKU identifier")
             st.markdown("- Historical demand/sales data")
-            st.stop()
         
-        # Load data with encoding fallback
-        try:
-            df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8')
-        except:
-            uploaded_file.seek(0)
-            df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='ISO-8859-1')
-        
-        df.columns = [str(c).strip() for c in df.columns]
-        
-        st.success(f"✅ Loaded {len(df)} records")
-        
-        # Column mapping
-        st.subheader("🗂️ Column Mapping")
-        item_col = st.selectbox("Item/SKU ID Column:", df.columns, help="Column containing SKU identifiers")
-        sales_col = st.selectbox("Demand/Sales Column:", df.columns, help="Column with historical demand data")
-        
-        # SKU selection
-        all_items = df[item_col].unique()
-        st.subheader("📦 SKU Selection")
-        
-        selection_mode = st.radio("Selection Mode:", ["Multi-Select", "ABC Classification"])
-        
-        if selection_mode == "Multi-Select":
-            selected_items = st.multiselect(
-                "Select SKUs to Analyze:",
-                all_items,
-                default=all_items[:min(3, len(all_items))],
-                help="Choose specific SKUs for detailed analysis"
-            )
+        # If data uploaded, process it
+        if data_uploaded:
+            # Load data with encoding fallback
+            try:
+                df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8')
+            except:
+                uploaded_file.seek(0)
+                df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='ISO-8859-1')
+            
+            df.columns = [str(c).strip() for c in df.columns]
+            
+            st.success(f"✅ Loaded {len(df)} records")
+            
+            # Column mapping
+            st.subheader("🗂️ Column Mapping")
+            item_col = st.selectbox("Item/SKU ID Column:", df.columns, help="Column containing SKU identifiers")
+            sales_col = st.selectbox("Demand/Sales Column:", df.columns, help="Column with historical demand data")
+            
+            # SKU selection
+            all_items = df[item_col].unique()
+            st.subheader("📦 SKU Selection")
+            
+            selection_mode = st.radio("Selection Mode:", ["Multi-Select", "ABC Classification"])
+            
+            if selection_mode == "Multi-Select":
+                selected_items = st.multiselect(
+                    "Select SKUs to Analyze:",
+                    all_items,
+                    default=all_items[:min(3, len(all_items))],
+                    help="Choose specific SKUs for detailed analysis"
+                )
+            else:
+                # ABC classification based on total demand
+                sku_totals = {}
+                for item in all_items:
+                    item_data = df[df[item_col] == item]
+                    raw_demand = pd.to_numeric(
+                        item_data[sales_col].astype(str).str.replace(',', ''),
+                        errors='coerce'
+                    ).dropna()
+                    sku_totals[item] = raw_demand.sum() if not raw_demand.empty else 0
+                
+                total_demand = sum(sku_totals.values())
+                sorted_skus = sorted(sku_totals.items(), key=lambda x: x[1], reverse=True)
+                
+                cumulative = 0
+                abc_classification = {}
+                for sku, demand in sorted_skus:
+                    pct = (demand / total_demand * 100) if total_demand > 0 else 0
+                    cumulative += pct
+                    if cumulative <= 70:
+                        abc_classification[sku] = 'A'
+                    elif cumulative <= 95:
+                        abc_classification[sku] = 'B'
+                    else:
+                        abc_classification[sku] = 'C'
+                
+                class_filter = st.multiselect(
+                    "Select ABC Classes:",
+                    ['A', 'B', 'C'],
+                    default=['A', 'B'],
+                    help="A: Top 70% revenue, B: Next 25%, C: Bottom 5%"
+                )
+                
+                selected_items = [sku for sku, cls in abc_classification.items() if cls in class_filter]
+            
+            if not selected_items:
+                st.warning("⚠️ No SKUs selected. Please select at least one SKU.")
+                selected_items = []  # Empty list instead of stopping
+            else:
+                st.info(f"🎯 Analyzing {len(selected_items)} SKU(s)")
+            
+            st.divider()
+            
+            # Global simulation settings
+            st.subheader("⚙️ Simulation Settings")
+            sim_days = st.slider("Simulation Horizon (days)", 30, 180, 90, 30)
+            iterations = st.slider("Monte Carlo Iterations", 20, 100, 50, 10)
+            target_service = st.slider("Target Service Level (%)", 85, 99, 95, 1)
+            
+            st.divider()
         else:
-            # ABC classification based on total demand
-            sku_totals = {}
-            for item in all_items:
-                item_data = df[df[item_col] == item]
-                raw_demand = pd.to_numeric(
-                    item_data[sales_col].astype(str).str.replace(',', ''),
-                    errors='coerce'
-                ).dropna()
-                sku_totals[item] = raw_demand.sum() if not raw_demand.empty else 0
-            
-            total_demand = sum(sku_totals.values())
-            sorted_skus = sorted(sku_totals.items(), key=lambda x: x[1], reverse=True)
-            
-            cumulative = 0
-            abc_classification = {}
-            for sku, demand in sorted_skus:
-                pct = (demand / total_demand * 100) if total_demand > 0 else 0
-                cumulative += pct
-                if cumulative <= 70:
-                    abc_classification[sku] = 'A'
-                elif cumulative <= 95:
-                    abc_classification[sku] = 'B'
-                else:
-                    abc_classification[sku] = 'C'
-            
-            class_filter = st.multiselect(
-                "Select ABC Classes:",
-                ['A', 'B', 'C'],
-                default=['A', 'B'],
-                help="A: Top 70% revenue, B: Next 25%, C: Bottom 5%"
-            )
-            
-            selected_items = [sku for sku, cls in abc_classification.items() if cls in class_filter]
-        
-        if not selected_items:
-            st.warning("⚠️ No SKUs selected. Please select at least one SKU.")
-            st.stop()
-        
-        st.info(f"🎯 Analyzing {len(selected_items)} SKU(s)")
-        
-        st.divider()
-        
-        # Global simulation settings
-        st.subheader("⚙️ Simulation Settings")
-        sim_days = st.slider("Simulation Horizon (days)", 30, 180, 90, 30)
-        iterations = st.slider("Monte Carlo Iterations", 20, 100, 50, 10)
-        target_service = st.slider("Target Service Level (%)", 85, 99, 95, 1)
-        
-        st.divider()
+            # No data uploaded - set defaults for User Guide display
+            selected_items = []
+            df = None
+            item_col = None
+            sales_col = None
+            sim_days = 90
+            iterations = 50
+            target_service = 95
     
     # ============================================================
     # MAIN INTERFACE: Portfolio Dashboard + Individual SKU Analysis
@@ -1065,14 +1078,13 @@ def main():
             
             **Contact:**
             - 📧 Email: [waleed.amaged80@gmail.com]
-            
+            - 💼 LinkedIn: [www.linkedin.com/in/waleed-abdel-mageed-cscp-pmp®-b283b316]
             
             #### 🏆 About the Developer
             **Waleed A. Mageed**
             - CSCP (Certified Supply Chain Professional)
             - PMP (Project Management Professional)
             - Supply Chain & Procurement Professional
-            
             
             ---
             
@@ -1117,21 +1129,34 @@ def main():
     with tab_portfolio:
         st.header("🌐 Multi-SKU Portfolio Overview")
         
-        # Check if we have results for any SKUs
-        analyzed_skus = {sku: result for sku, result in st.session_state['sku_results'].items() if sku in selected_items}
-        
-        if not analyzed_skus:
-            st.info("👉 Run simulations for individual SKUs in their respective tabs to see portfolio metrics here.")
+        # Check if data has been uploaded
+        if not data_uploaded:
+            st.info("📤 Please upload your data in the sidebar to view portfolio analysis.")
+            st.markdown("""
+            **This dashboard will show:**
+            - Total portfolio revenue and profit
+            - Average service level across all SKUs
+            - Portfolio risk assessment
+            - SKU performance comparison charts
+            
+            **Upload your CSV file to get started!** 👆
+            """)
         else:
-            # Portfolio metrics
-            st.subheader("📈 Portfolio Performance Metrics")
-            st.caption(f"✅ Calculated from {len(analyzed_skus)} ANALYZED SKUs only (NOT including unanalyzed SKUs)")
+            # Check if we have results for any SKUs
+            analyzed_skus = {sku: result for sku, result in st.session_state['sku_results'].items() if sku in selected_items}
             
-            col1, col2, col3, col4 = st.columns(4)
-            
-            total_revenue = sum(r['sim_df']['revenue'].mean() for r in analyzed_skus.values())
-            total_profit = sum(r['sim_df']['profit'].mean() for r in analyzed_skus.values())
-            avg_service = np.mean([r['sim_df']['service_level'].mean() for r in analyzed_skus.values()])
+            if not analyzed_skus:
+                st.info("👉 Run simulations for individual SKUs in their respective tabs to see portfolio metrics here.")
+            else:
+                # Portfolio metrics
+                st.subheader("📈 Portfolio Performance Metrics")
+                st.caption(f"✅ Calculated from {len(analyzed_skus)} ANALYZED SKUs only (NOT including unanalyzed SKUs)")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                total_revenue = sum(r['sim_df']['revenue'].mean() for r in analyzed_skus.values())
+                total_profit = sum(r['sim_df']['profit'].mean() for r in analyzed_skus.values())
+                avg_service = np.mean([r['sim_df']['service_level'].mean() for r in analyzed_skus.values()])
             
             with col1:
                 st.metric("Total Portfolio Revenue", f"${total_revenue:,.0f}")
@@ -1262,16 +1287,18 @@ def main():
     # ============================================================
     # TAB 2+: INDIVIDUAL SKU ANALYSIS
     # ============================================================
-    for tab_idx, item in enumerate(selected_items):
-        with tab_skus[tab_idx]:
-            # Initialize memory for this SKU
-            if f"memory_{item}" not in st.session_state:
-                st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
-            
-            st.header(f"📦 SKU Analysis: {item}")
-            
-            # Extract item-specific data
-            item_data = df[df[item_col] == item]
+    # Only process SKU tabs if data is uploaded and SKUs are selected
+    if data_uploaded and selected_items:
+        for tab_idx, item in enumerate(selected_items):
+            with tab_skus[tab_idx]:
+                # Initialize memory for this SKU
+                if f"memory_{item}" not in st.session_state:
+                    st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
+                
+                st.header(f"📦 SKU Analysis: {item}")
+                
+                # Extract item-specific data
+                item_data = df[df[item_col] == item]
             
             if item_data.empty:
                 st.warning(f"⚠️ No data found for SKU: {item}")
