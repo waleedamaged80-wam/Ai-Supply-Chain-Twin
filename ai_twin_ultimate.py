@@ -1086,7 +1086,8 @@ def main():
             **Waleed A. Mageed**
             - CSCP Fellow (Certified Supply Chain Professional)
             - PMP (Project Management Professional)
-            - Supply Chain & Procurement Professional
+            - 15+ years supply chain experience
+            - Expert in inventory optimization and AI decision systems
             
             ---
             
