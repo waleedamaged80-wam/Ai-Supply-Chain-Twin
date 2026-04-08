@@ -47,7 +47,7 @@ of this software.
 
 For complete license terms, see LICENSE file.
 
-Version: 1.2.3
+Version: 1.2.4
 Last Updated: April 8, 2026
 
 ================================================================================
@@ -1560,7 +1560,8 @@ def main():
                                     'sim_df': sim_df,
                                     'daily_traces': daily_traces,
                                     'analysis': analysis,
-                                    'config': config
+                                    'config': config,
+                                    'scenario': scenario  # Store scenario text for reports
                                 }
                                 
                                 # Store in global portfolio results
@@ -1587,6 +1588,7 @@ def main():
                         sim_df = results.get('sim_df', pd.DataFrame())
                         daily_traces = results.get('daily_traces', {})
                         analysis = results.get('analysis', {})
+                        scenario = results.get('scenario', 'Normal operations')  # Retrieve scenario for reports
                         
                         # Validate that we have the necessary data
                         if sim_df.empty or not analysis:
