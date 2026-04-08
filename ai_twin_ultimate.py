@@ -1342,20 +1342,6 @@ def main():
                 st.warning(f"⚠️ Only {len(raw_demand)} data point(s) for {item}. Need at least 2 for reliable analysis.")
                 std_demand = mean_demand * 0.2  # Default assumption
             
-            st.info(f"📊 Historical Demand: μ={mean_demand:.0f}, σ={std_demand:.0f} (based on {len(raw_demand)} records)")
-            
-            # Sanity check for extremely high values
-            if mean_demand > 1_000_000:
-                st.error(f"⚠️ WARNING: Average demand ({mean_demand:,.0f}) seems unrealistically high! Check your data or click Reset button below.")
-            
-            # Add reset button to clear cached values
-            if st.button(f"🔄 Reset to Calculated Defaults", key=f"reset_{item}"):
-                # Force recalculation by clearing session state for this SKU
-                for key in list(st.session_state.keys()):
-                    if item in key:
-                        del st.session_state[key]
-                st.rerun()
-            
             # Check if we already have results
             if f"memory_{item}" not in st.session_state:
                 st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
@@ -1364,6 +1350,20 @@ def main():
             
             # Only show configuration section if no results exist yet
             if show_config:
+                st.info(f"📊 Historical Demand: μ={mean_demand:.0f}, σ={std_demand:.0f} (based on {len(raw_demand)} records)")
+                
+                # Sanity check for extremely high values
+                if mean_demand > 1_000_000:
+                    st.error(f"⚠️ WARNING: Average demand ({mean_demand:,.0f}) seems unrealistically high! Check your data or click Reset button below.")
+                
+                # Add reset button to clear cached values
+                if st.button(f"🔄 Reset to Calculated Defaults", key=f"reset_{item}"):
+                    # Force recalculation by clearing session state for this SKU
+                    for key in list(st.session_state.keys()):
+                        if item in key:
+                            del st.session_state[key]
+                    st.rerun()
+                
                 # Configuration section
                 st.subheader("⚙️ Inventory Policy Configuration")
                 
