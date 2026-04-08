@@ -47,7 +47,7 @@ of this software.
 
 For complete license terms, see LICENSE file.
 
-Version: 1.2.2
+Version: 1.2.3
 Last Updated: April 8, 2026
 
 ================================================================================
@@ -1356,217 +1356,225 @@ def main():
                         del st.session_state[key]
                 st.rerun()
             
-            # Configuration section
-            st.subheader("⚙️ Inventory Policy Configuration")
+            # Check if we already have results
+            if f"memory_{item}" not in st.session_state:
+                st.session_state[f"memory_{item}"] = {"executed": False, "results": None}
             
-            config_col1, config_col2 = st.columns(2)
+            show_config = not (st.session_state[f"memory_{item}"]["executed"] and st.session_state[f"memory_{item}"]["results"])
             
-            with config_col1:
-                st.markdown("**Inventory Parameters**")
+            # Only show configuration section if no results exist yet
+            if show_config:
+                # Configuration section
+                st.subheader("⚙️ Inventory Policy Configuration")
                 
-                # Single total lead time input
-                lead_time = st.number_input(
-                    "Lead Time (days)",
-                    value=10,
-                    min_value=1,
-                    max_value=90,
-                    step=1,
-                    key=f"lead_time_{item}",
-                    help="Total days from order placement to delivery"
-                )
+                config_col1, config_col2 = st.columns(2)
                 
-                # Smart defaults using formulas with USER'S lead time
-                z_score_95 = 1.65
-                recommended_ss = int(z_score_95 * std_demand * np.sqrt(lead_time))
-                
-                # Calculate sensible default values
-                default_ss = max(int(mean_demand * 5), recommended_ss)
-                default_qty = int(mean_demand * 10)
-                default_rop = int(mean_demand * (lead_time * 0.5))  # Half of lead time for ROP
-                
-                # Add validation to prevent unrealistic values
-                max_reasonable_ss = int(mean_demand * 100)  # Max 100 days of demand
-                max_reasonable_qty = int(mean_demand * 50)  # Max 50 days per order
-                max_reasonable_rop = int(mean_demand * 20)  # Max 20 days for reorder
-                
-                safety_stock = st.number_input(
-                    "Safety Stock (units)",
-                    value=min(default_ss, max_reasonable_ss),
-                    min_value=0,
-                    max_value=max_reasonable_ss,
-                    step=500,
-                    key=f"ss_{item}",
-                    help=f"Recommended (95% service, {lead_time}-day LT): {recommended_ss:,}. Max: {max_reasonable_ss:,}"
-                )
-                
-                order_qty = st.number_input(
-                    "Order Quantity (units)",
-                    value=min(default_qty, max_reasonable_qty),
-                    min_value=1,
-                    max_value=max_reasonable_qty,
-                    step=500,
-                    key=f"qty_{item}",
-                    help=f"Typical: 10-15 days of demand. Max allowed: {max_reasonable_qty:,}"
-                )
-                
-                reorder_point = st.number_input(
-                    "Local Reorder Point",
-                    value=min(default_rop, max_reasonable_rop),
-                    min_value=0,
-                    max_value=max_reasonable_rop,
-                    step=100,
-                    key=f"rop_{item}",
-                    help=f"Trigger replenishment when below this level. Max allowed: {max_reasonable_rop:,}"
-                )
-            
-            with config_col2:
-                st.markdown("**Cost & Pricing**")
-                
-                # Unit cost - allow decimals below $1
-                unit_cost = st.number_input(
-                    "Unit Cost ($)",
-                    value=100.0,
-                    min_value=0.01,
-                    step=1.0,
-                    format="%.2f",
-                    key=f"unit_cost_{item}",
-                    help="What you pay your supplier per unit (can be less than $1)"
-                )
-                
-                # Margin as percentage
-                margin_pct = st.number_input(
-                    "Profit Margin (%)",
-                    value=50.0,
-                    min_value=0.0,
-                    max_value=1000.0,
-                    step=5.0,
-                    format="%.1f",
-                    key=f"margin_pct_{item}",
-                    help="Profit margin as % of unit cost. Selling price = unit cost × (1 + margin %)"
-                )
-                
-                # Calculate margin in dollars
-                margin = unit_cost * (margin_pct / 100)
-                selling_price = unit_cost + margin
-                
-                st.caption(f"💰 Selling Price: ${selling_price:.2f}/unit (Cost: ${unit_cost:.2f} + Margin: ${margin:.2f})")
-                
-                # Advanced cost parameters
-                with st.expander("⚙️ Additional Cost Settings"):
-                    holding_rate = st.slider(
-                        "Annual Holding Cost Rate (%)",
-                        min_value=10,
-                        max_value=50,
-                        value=25,
-                        step=5,
-                        key=f"holding_{item}",
-                        help="Cost of holding inventory as % of unit cost per year"
+                with config_col1:
+                    st.markdown("**Inventory Parameters**")
+                    
+                    # Single total lead time input
+                    lead_time = st.number_input(
+                        "Lead Time (days)",
+                        value=10,
+                        min_value=1,
+                        max_value=90,
+                        step=1,
+                        key=f"lead_time_{item}",
+                        help="Total days from order placement to delivery"
                     )
                     
-                    stockout_penalty = st.number_input(
-                        "Stockout Penalty ($)",
-                        value=200.0,
-                        min_value=0.0,
-                        step=25.0,
-                        format="%.2f",
-                        key=f"penalty_{item}",
-                        help="Cost of losing one sale (lost profit + customer dissatisfaction)"
+                    # Smart defaults using formulas with USER'S lead time
+                    z_score_95 = 1.65
+                    recommended_ss = int(z_score_95 * std_demand * np.sqrt(lead_time))
+                    
+                    # Calculate sensible default values
+                    default_ss = max(int(mean_demand * 5), recommended_ss)
+                    default_qty = int(mean_demand * 10)
+                    default_rop = int(mean_demand * (lead_time * 0.5))  # Half of lead time for ROP
+                    
+                    # Add validation to prevent unrealistic values
+                    max_reasonable_ss = int(mean_demand * 100)  # Max 100 days of demand
+                    max_reasonable_qty = int(mean_demand * 50)  # Max 50 days per order
+                    max_reasonable_rop = int(mean_demand * 20)  # Max 20 days for reorder
+                    
+                    safety_stock = st.number_input(
+                        "Safety Stock (units)",
+                        value=min(default_ss, max_reasonable_ss),
+                        min_value=0,
+                        max_value=max_reasonable_ss,
+                        step=500,
+                        key=f"ss_{item}",
+                        help=f"Recommended (95% service, {lead_time}-day LT): {recommended_ss:,}. Max: {max_reasonable_ss:,}"
                     )
                     
-                    transport_cost = st.number_input(
-                        "Transport Cost ($/unit)",
-                        value=2.0,
-                        min_value=0.0,
-                        step=0.5,
-                        format="%.2f",
-                        key=f"transport_{item}",
-                        help="Cost to ship one unit between locations"
+                    order_qty = st.number_input(
+                        "Order Quantity (units)",
+                        value=min(default_qty, max_reasonable_qty),
+                        min_value=1,
+                        max_value=max_reasonable_qty,
+                        step=500,
+                        key=f"qty_{item}",
+                        help=f"Typical: 10-15 days of demand. Max allowed: {max_reasonable_qty:,}"
                     )
-            
-            # Scenario Planning moved to new section
-            st.markdown("**Scenario Planning**")
-            
-            scenario = st.text_area(
-                "Describe Disruption Scenario:",
-                value="Normal operations",
-                height=100,
-                key=f"scenario_{item}",
-                help="Examples: 'Demand surge 20%', 'Supplier delay 7 days', 'Port strike 40% capacity loss'"
-            )
-            
-            # Show example scenarios
-            with st.expander("💡 Example Scenarios"):
-                st.markdown("""
-                - *Demand surge 25% for 2 weeks*
-                - *Factory delay 10 days*
-                - *Port strike in Shanghai 7 day delay 40% capacity reduction*
-                - *Volatile demand due to competitor stockout*
-                - *Critical emergency requiring immediate shipment*
-                """)
-            
-            # Execute simulation button
-            if st.button(f"🚀 Execute AI Twin Simulation", key=f"exec_{item}", type="primary", use_container_width=True):
+                    
+                    reorder_point = st.number_input(
+                        "Local Reorder Point",
+                        value=min(default_rop, max_reasonable_rop),
+                        min_value=0,
+                        max_value=max_reasonable_rop,
+                        step=100,
+                        key=f"rop_{item}",
+                        help=f"Trigger replenishment when below this level. Max allowed: {max_reasonable_rop:,}"
+                    )
                 
-                try:
-                    with st.spinner("🧠 Parsing scenario and running simulation..."):
-                        # Parse scenario
-                        parser = ScenarioParser()
-                        disruption_profile = parser.parse(scenario)
-                        
-                        # Configure simulation
-                        config = {
-                            'mean_demand': mean_demand,
-                            'std_demand': std_demand,
-                            'safety_stock': safety_stock,
-                            'order_qty': order_qty,
-                            'reorder_point_local': reorder_point,
-                            'unit_cost': unit_cost,
-                            'margin': margin,
-                            'penalty': stockout_penalty,
-                            'holding_rate': holding_rate,
-                            'transport_cost': transport_cost,
-                            'lead_time': lead_time
-                        }
-                        
-                        # Run simulation
-                        twin = SupplyChainTwin(config)
-                        sim_df, daily_traces = twin.simulate_scenario(
-                            disruption_profile,
-                            sim_days=sim_days,
-                            iterations=iterations
+                with config_col2:
+                    st.markdown("**Cost & Pricing**")
+                    
+                    # Unit cost - allow decimals below $1
+                    unit_cost = st.number_input(
+                        "Unit Cost ($)",
+                        value=100.0,
+                        min_value=0.01,
+                        step=1.0,
+                        format="%.2f",
+                        key=f"unit_cost_{item}",
+                        help="What you pay your supplier per unit (can be less than $1)"
+                    )
+                    
+                    # Margin as percentage
+                    margin_pct = st.number_input(
+                        "Profit Margin (%)",
+                        value=50.0,
+                        min_value=0.0,
+                        max_value=1000.0,
+                        step=5.0,
+                        format="%.1f",
+                        key=f"margin_pct_{item}",
+                        help="Profit margin as % of unit cost. Selling price = unit cost × (1 + margin %)"
+                    )
+                    
+                    # Calculate margin in dollars
+                    margin = unit_cost * (margin_pct / 100)
+                    selling_price = unit_cost + margin
+                    
+                    st.caption(f"💰 Selling Price: ${selling_price:.2f}/unit (Cost: ${unit_cost:.2f} + Margin: ${margin:.2f})")
+                    
+                    # Advanced cost parameters
+                    with st.expander("⚙️ Additional Cost Settings"):
+                        holding_rate = st.slider(
+                            "Annual Holding Cost Rate (%)",
+                            min_value=10,
+                            max_value=50,
+                            value=25,
+                            step=5,
+                            key=f"holding_{item}",
+                            help="Cost of holding inventory as % of unit cost per year"
                         )
                         
-                        # AI decision analysis
-                        decision_engine = DecisionEngine()
-                        analysis = decision_engine.analyze_performance(
-                            sim_df,
-                            baseline_profit=None,
-                            target_service=target_service,
-                            mean_demand=mean_demand
+                        stockout_penalty = st.number_input(
+                            "Stockout Penalty ($)",
+                            value=200.0,
+                            min_value=0.0,
+                            step=25.0,
+                            format="%.2f",
+                            key=f"penalty_{item}",
+                            help="Cost of losing one sale (lost profit + customer dissatisfaction)"
                         )
                         
-                        # Store results
-                        st.session_state[f"memory_{item}"]["executed"] = True
-                        st.session_state[f"memory_{item}"]["results"] = {
-                            'disruption_profile': disruption_profile,
-                            'sim_df': sim_df,
-                            'daily_traces': daily_traces,
-                            'analysis': analysis,
-                            'config': config
-                        }
+                        transport_cost = st.number_input(
+                            "Transport Cost ($/unit)",
+                            value=2.0,
+                            min_value=0.0,
+                            step=0.5,
+                            format="%.2f",
+                            key=f"transport_{item}",
+                            help="Cost to ship one unit between locations"
+                        )
+                
+                # Scenario Planning moved to new section
+                st.markdown("**Scenario Planning**")
+                
+                scenario = st.text_area(
+                    "Describe Disruption Scenario:",
+                    value="Normal operations",
+                    height=100,
+                    key=f"scenario_{item}",
+                    help="Examples: 'Demand surge 20%', 'Supplier delay 7 days', 'Port strike 40% capacity loss'"
+                )
+                
+                # Show example scenarios
+                with st.expander("💡 Example Scenarios"):
+                    st.markdown("""
+                    - *Demand surge 25% for 2 weeks*
+                    - *Factory delay 10 days*
+                    - *Port strike in Shanghai 7 day delay 40% capacity reduction*
+                    - *Volatile demand due to competitor stockout*
+                    - *Critical emergency requiring immediate shipment*
+                    """)
+                
+                # Execute simulation button
+                if st.button(f"🚀 Execute AI Twin Simulation", key=f"exec_{item}", type="primary", use_container_width=True):
+                    
+                    try:
+                        with st.spinner("🧠 Parsing scenario and running simulation..."):
+                            # Parse scenario
+                            parser = ScenarioParser()
+                            disruption_profile = parser.parse(scenario)
+                            
+                            # Configure simulation
+                            config = {
+                                'mean_demand': mean_demand,
+                                'std_demand': std_demand,
+                                'safety_stock': safety_stock,
+                                'order_qty': order_qty,
+                                'reorder_point_local': reorder_point,
+                                'unit_cost': unit_cost,
+                                'margin': margin,
+                                'penalty': stockout_penalty,
+                                'holding_rate': holding_rate,
+                                'transport_cost': transport_cost,
+                                'lead_time': lead_time
+                            }
+                            
+                            # Run simulation
+                            twin = SupplyChainTwin(config)
+                            sim_df, daily_traces = twin.simulate_scenario(
+                                disruption_profile,
+                                sim_days=sim_days,
+                                iterations=iterations
+                            )
+                            
+                            # AI decision analysis
+                            decision_engine = DecisionEngine()
+                            analysis = decision_engine.analyze_performance(
+                                sim_df,
+                                baseline_profit=None,
+                                target_service=target_service,
+                                mean_demand=mean_demand
+                            )
+                            
+                            # Store results
+                            st.session_state[f"memory_{item}"]["executed"] = True
+                            st.session_state[f"memory_{item}"]["results"] = {
+                                'disruption_profile': disruption_profile,
+                                'sim_df': sim_df,
+                                'daily_traces': daily_traces,
+                                'analysis': analysis,
+                                'config': config
+                            }
+                            
+                            # Store in global portfolio results
+                            st.session_state['sku_results'][item] = st.session_state[f"memory_{item}"]["results"]
                         
-                        # Store in global portfolio results
-                        st.session_state['sku_results'][item] = st.session_state[f"memory_{item}"]["results"]
-                    
-                    st.success("✅ Simulation complete!")
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"❌ Error during simulation: {str(e)}")
-                    st.error("Please check your configuration and try again.")
-                    with st.expander("🔍 Technical Details"):
-                        st.code(f"{type(e).__name__}: {str(e)}")
-                        import traceback
+                        st.success("✅ Simulation complete!")
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error during simulation: {str(e)}")
+                        st.error("Please check your configuration and try again.")
+                        with st.expander("🔍 Technical Details"):
+                            st.code(f"{type(e).__name__}: {str(e)}")
+                            import traceback
                         st.code(traceback.format_exc())
             
             # Display results if available
