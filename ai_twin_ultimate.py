@@ -65,6 +65,84 @@ from scipy import stats
 import json
 
 # ============================================================
+# CARBON FOOTPRINT CALCULATOR
+# ============================================================
+
+class CarbonFootprintCalculator:
+    """Calculate carbon emissions for supply chain operations"""
+    
+    # Emission factors (based on DEFRA 2023, IMO 2023, IATA 2023)
+    TRANSPORT_EMISSIONS = {
+        'Truck': 62,      # g CO2 per ton-km
+        'Train': 22,      # g CO2 per ton-km
+        'Ship': 10,       # g CO2 per ton-km
+        'Air': 500        # g CO2 per ton-km
+    }
+    
+    WAREHOUSE_EMISSIONS = {
+        'Ambient': 0.5,              # kg CO2 per unit per year
+        'Refrigerated': 2.0,         # kg CO2 per unit per year
+        'Frozen': 4.0,               # kg CO2 per unit per year
+        'Climate-Controlled': 1.0    # kg CO2 per unit per year
+    }
+    
+    @staticmethod
+    def calculate_transport_co2(distance_km, weight_kg, units, mode='Truck'):
+        """
+        Calculate transport emissions
+        
+        Args:
+            distance_km: Distance traveled
+            weight_kg: Weight per unit
+            units: Number of units transported
+            mode: Transport mode (Truck/Train/Ship/Air)
+        
+        Returns:
+            CO2 emissions in kg
+        """
+        emission_factor = CarbonFootprintCalculator.TRANSPORT_EMISSIONS.get(mode, 62)
+        total_weight_tons = (weight_kg * units) / 1000
+        emissions_g = distance_km * total_weight_tons * emission_factor
+        return emissions_g / 1000  # Convert to kg
+    
+    @staticmethod
+    def calculate_warehouse_co2(avg_inventory, days, storage_type='Ambient'):
+        """
+        Calculate warehouse emissions
+        
+        Args:
+            avg_inventory: Average inventory level (units)
+            days: Number of storage days
+            storage_type: Type of storage facility
+        
+        Returns:
+            CO2 emissions in kg
+        """
+        emission_factor = CarbonFootprintCalculator.WAREHOUSE_EMISSIONS.get(storage_type, 0.5)
+        emissions = avg_inventory * (days / 365) * emission_factor
+        return emissions
+    
+    @staticmethod
+    def get_carbon_rating(carbon_intensity):
+        """
+        Get performance rating based on carbon intensity
+        
+        Args:
+            carbon_intensity: kg CO2 per dollar of revenue
+        
+        Returns:
+            tuple: (rating_text, stars, color)
+        """
+        if carbon_intensity < 0.05:
+            return ("Excellent", "⭐⭐⭐", "#28a745")
+        elif carbon_intensity < 0.10:
+            return ("Good", "⭐⭐", "#2ECC71")
+        elif carbon_intensity < 0.15:
+            return ("Fair", "⭐", "#F39C12")
+        else:
+            return ("Poor", "❌", "#E74C3C")
+
+# ============================================================
 # 1. ADVANCED NLP SCENARIO PARSER
 # ============================================================
 class ScenarioParser:
@@ -947,6 +1025,257 @@ def main():
             - Stockout penalties at customer-facing level
             """)
         
+        # Carbon Footprint Tracking - NEW!
+        with st.expander("🌱 Carbon Footprint Tracking (NEW!)"):
+            st.markdown("""
+            ### Understanding Carbon Footprint Analysis
+            
+            AI Supply Chain Twin now tracks the environmental impact of your supply chain operations!
+            
+            #### What Gets Measured:
+            
+            **🚛 Transport Emissions:**
+            - **Factory → DC:** Primary transport (often long distance)
+            - **DC → Store:** Last-mile delivery (often shorter distance)
+            - **4 Transport Modes:**
+              - Truck: 62 g CO2/ton-km (DEFRA 2023)
+              - Train: 22 g CO2/ton-km (DEFRA 2023)
+              - Ship: 10 g CO2/ton-km (IMO 2023)
+              - Air: 500 g CO2/ton-km (IATA 2023)
+            
+            **🏭 Warehouse Emissions:**
+            - **4 Storage Types:**
+              - Ambient: 0.5 kg CO2/unit/year
+              - Refrigerated: 2.0 kg CO2/unit/year
+              - Frozen: 4.0 kg CO2/unit/year
+              - Climate-Controlled: 1.0 kg CO2/unit/year
+            
+            ---
+            
+            ### Configuring Carbon Settings Per SKU
+            
+            **Each SKU can have unique carbon settings!**
+            
+            #### How to Configure:
+            1. Go to your SKU tab (e.g., "📦 RED BRICK")
+            2. Find "🌱 Carbon Footprint Settings" section (collapsed by default)
+            3. Expand it and configure:
+            
+            **Transport Configuration:**
+            - **Factory → DC Mode:** Choose Truck/Train/Ship/Air
+            - **Factory → DC Distance:** Enter distance in km
+            - **DC → Store Mode:** Choose Truck/Train/Ship/Air
+            - **DC → Store Distance:** Enter distance in km
+            
+            **Product Details:**
+            - **Product Weight:** Weight per unit in kg
+            - **Storage Type:** Choose storage requirements
+            
+            #### Real-World Examples:
+            
+            **Construction Materials (Heavy, Domestic):**
+            ```
+            RED BRICK:
+            - Factory→DC: Truck (300 km) - Heavy, short distance
+            - DC→Store: Truck (50 km) - Local delivery
+            - Weight: 25 kg/unit
+            - Storage: Ambient
+            Result: HIGH transport emissions (truck mode)
+            ```
+            
+            **Imported Bulk Goods (Long Distance):**
+            ```
+            OPC CEMENT:
+            - Factory→DC: Ship (5,000 km) - Overseas import
+            - DC→Store: Train (500 km) - Bulk rail transport
+            - Weight: 50 kg/unit
+            - Storage: Ambient
+            Result: LOWER emissions per ton-km (ship + train)
+            ```
+            
+            **Light Products (Regional):**
+            ```
+            FIBER CEMENT BOARD:
+            - Factory→DC: Train (1,000 km) - Regional supplier
+            - DC→Store: Truck (200 km) - Last mile
+            - Weight: 15 kg/unit
+            - Storage: Ambient
+            Result: MODERATE emissions (mixed modes)
+            ```
+            
+            ---
+            
+            ### Understanding Carbon Metrics
+            
+            #### Individual SKU Metrics:
+            
+            **Total CO2 (kg):**
+            - Total carbon emissions for simulation period
+            - Includes transport + warehouse
+            - Example: 98,930 kg CO2
+            
+            **CO2 per Unit (kg):**
+            - Carbon footprint per product unit
+            - Useful for product-level comparisons
+            - Example: 0.18 kg CO2/unit
+            
+            **Carbon Intensity (kg/$):**
+            - CO2 emissions per dollar of revenue
+            - Key metric for efficiency
+            - Lower is better!
+            - Example: 0.0012 kg/$
+            
+            **Performance Rating:**
+            - ⭐⭐⭐ **Excellent:** < 0.05 kg/$ (Green supply chain)
+            - ⭐⭐ **Good:** 0.05-0.10 kg/$ (Above average)
+            - ⭐ **Fair:** 0.10-0.15 kg/$ (Room for improvement)
+            - ❌ **Poor:** > 0.15 kg/$ (Needs optimization)
+            
+            #### Portfolio Metrics:
+            
+            **Portfolio Total CO2:**
+            - Total emissions across all analyzed SKUs
+            - Tracks your overall carbon footprint
+            
+            **Avg CO2/Unit:**
+            - Average carbon per unit across portfolio
+            - Identifies high-emission products
+            
+            **Transport %:**
+            - Percentage of emissions from transport
+            - Typically 85-95% for most products
+            - High % suggests transport optimization opportunity
+            
+            ---
+            
+            ### Carbon Optimization Strategies
+            
+            #### 🚛 Transport Mode Optimization:
+            
+            **Switch from Truck to Train:**
+            - Savings: ~65% reduction (62 → 22 g/ton-km)
+            - Best for: Bulk goods, non-urgent, rail-accessible
+            - Example: Cement, construction materials
+            
+            **Switch from Truck to Ship:**
+            - Savings: ~84% reduction (62 → 10 g/ton-km)
+            - Best for: International, large volumes, long distances
+            - Example: Imported goods, containerized cargo
+            
+            **Avoid Air Freight:**
+            - Cost: 8x higher than truck (500 vs 62 g/ton-km)
+            - Use only for: Emergencies, perishables, high-value urgent
+            
+            #### 📦 Warehouse Optimization:
+            
+            **Reduce Inventory Levels:**
+            - Lower average inventory = less warehouse emissions
+            - Use just-in-time when feasible
+            - Balance service level vs carrying cost
+            
+            **Optimize Storage Type:**
+            - Ambient whenever possible (lowest emissions)
+            - Minimize frozen storage (8x higher than ambient)
+            - Use efficient climate control
+            
+            #### 🎯 Green Logistics Best Practices:
+            
+            **1. Consolidate Shipments:**
+            - Fewer trips = lower emissions
+            - Full truckloads vs partial loads
+            - Combine multiple SKUs
+            
+            **2. Optimize Routes:**
+            - Shorter distances = lower emissions
+            - Consider regional sourcing
+            - Multi-modal optimization
+            
+            **3. Balance Trade-offs:**
+            - Fast (air) vs Green (ship/train)
+            - Cost vs Carbon
+            - Service level vs Sustainability
+            
+            ---
+            
+            ### Using Carbon Data for Decision-Making
+            
+            #### ESG Reporting:
+            - Export carbon data from Portfolio Dashboard
+            - Include in sustainability reports
+            - Track Scope 3 emissions (transport + warehouse)
+            - Demonstrate net-zero progress
+            
+            #### Regulatory Compliance:
+            - EU Carbon Border Adjustment Mechanism (CBAM)
+            - SEC Climate Disclosure requirements
+            - Supply chain emissions reporting
+            - Carbon intensity tracking
+            
+            #### Customer Reporting:
+            - Provide carbon data to customers
+            - Support green procurement initiatives
+            - Enable carbon-conscious sourcing
+            - Differentiate with sustainability metrics
+            
+            #### Strategic Planning:
+            - Set carbon reduction targets
+            - Monitor portfolio carbon performance
+            - Identify high-emission SKUs for action
+            - Balance profit with planet
+            
+            ---
+            
+            ### Carbon Settings Tips
+            
+            #### ✅ Setting Realistic Values:
+            - **Distances:** Use actual route distances (Google Maps)
+            - **Weights:** Use actual product weights (from specs)
+            - **Modes:** Use actual transport methods (not ideal)
+            - **Storage:** Use actual warehouse conditions
+            
+            #### ✅ Per-SKU Configuration Benefits:
+            - **Accuracy:** Different SKUs have different supply chains
+            - **Optimization:** Compare scenarios per product
+            - **Realism:** Mixed portfolios with varied modes
+            - **Insights:** Identify which products drive emissions
+            
+            #### ✅ Portfolio Analysis:
+            - Compare carbon across SKUs
+            - Identify optimization opportunities
+            - Track transport mode mix
+            - Monitor carbon intensity trends
+            
+            #### ⚠️ Common Mistakes:
+            - ❌ Using same settings for all SKUs (not realistic!)
+            - ❌ Forgetting to set product weight
+            - ❌ Estimating distances (use actual data)
+            - ❌ Ignoring storage type (can be significant)
+            
+            ---
+            
+            ### Carbon Analytics in Portfolio Dashboard
+            
+            **What You'll See:**
+            
+            **1. Portfolio Carbon Metrics:**
+            - Total CO2, Avg CO2/Unit, Carbon Intensity
+            - Transport %, Portfolio Rating
+            
+            **2. Carbon Footprint by SKU Table:**
+            - Shows: Total CO2, CO2/Unit, Carbon Intensity
+            - Shows: Transport Mode, Storage Type
+            - Shows: Transport CO2, Warehouse CO2, Rating
+            - Sortable and filterable
+            
+            **3. Carbon Analytics Charts:**
+            - **Bar Chart:** Total CO2 by SKU (color-coded by rating)
+            - **Pie Chart:** Portfolio breakdown (Transport vs Warehouse)
+            
+            **4. Export with Carbon Data:**
+            - CSV/Excel downloads include carbon metrics
+            - Ready for ESG reports and analysis
+            """)
+        
         # Best Practices
         with st.expander("💡 Tips & Best Practices"):
             st.markdown("""
@@ -1144,8 +1473,25 @@ def main():
             **Upload your CSV file to get started!** 👆
             """)
         else:
-            # Check if we have results for any SKUs
-            analyzed_skus = {sku: result for sku, result in st.session_state['sku_results'].items() if sku in selected_items}
+            # Check if we have results - look in both sku_results AND individual memory
+            # Build analyzed_skus from BOTH sources to ensure we get ALL simulations
+            analyzed_skus = {}
+            
+            # First, add from sku_results (main storage)
+            for sku, result in st.session_state.get('sku_results', {}).items():
+                if sku in selected_items:
+                    analyzed_skus[sku] = result
+            
+            # Then, add any missing from individual memory states
+            for item in selected_items:
+                mem_key = f"memory_{item}"
+                if mem_key in st.session_state:
+                    mem = st.session_state[mem_key]
+                    if mem.get("executed") and mem.get("results"):
+                        if item not in analyzed_skus:  # Only if not already in analyzed_skus
+                            analyzed_skus[item] = mem["results"]
+                            # Also update sku_results for next time
+                            st.session_state['sku_results'][item] = mem["results"]
             
             if not analyzed_skus:
                 st.info("👉 Run simulations for individual SKUs in their respective tabs to see portfolio metrics here.")
@@ -1212,6 +1558,85 @@ def main():
                     })
                 
                 comparison_df = pd.DataFrame(comparison_data)
+                
+                # ⬇️⬇️⬇️ ADDITION 2: SKU PERFORMANCE COMPARISON TABLE ⬇️⬇️⬇️
+                st.subheader("SKU Performance Comparison")
+                
+                # Add Risk Level from actual analysis (use same classification as Portfolio Risk Assessment)
+                risk_levels = []
+                for sku in comparison_df['SKU']:
+                    if sku in analyzed_skus:
+                        # Get actual risk level from analysis
+                        actual_risk = analyzed_skus[sku]['analysis']['risk_analysis']['risk_level']
+                        # Map to display format (Critical/Medium/Low → Critical/Medium/Healthy)
+                        if actual_risk == 'Low':
+                            risk_levels.append('Healthy')
+                        else:
+                            risk_levels.append(actual_risk)
+                    else:
+                        risk_levels.append('Unknown')
+                
+                comparison_df['Risk Level'] = risk_levels
+                
+                # Display comparison table
+                st.dataframe(comparison_df[['SKU', 'Profit', 'Service Level', 'Inventory Turns', 'Risk Level']], 
+                           use_container_width=True)
+                
+                st.markdown("---")
+                # ⬆️⬆️⬆️ END ADDITION 2 ⬆️⬆️⬆️
+                
+                # ⬇️⬇️⬇️ ADDITION 3: PORTFOLIO ANALYTICS VISUALIZATIONS ⬇️⬇️⬇️
+                st.subheader("Portfolio Analytics")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Profit Contribution by SKU
+                    fig_profit = px.bar(
+                        comparison_df, 
+                        x='SKU', 
+                        y='Profit',
+                        color='Risk Level',
+                        color_discrete_map={
+                            'Critical': '#dc3545',   # Red
+                            'Caution': '#ffc107',    # Yellow
+                            'Stable': '#28a745'      # Green
+                        },
+                        title='Profit Contribution by SKU',
+                        labels={'Profit': 'Profit ($)'}
+                    )
+                    fig_profit.update_layout(showlegend=True)
+                    st.plotly_chart(fig_profit, use_container_width=True, key="profit_chart_v2")
+                
+                with col2:
+                    # Service Level vs Inventory Efficiency
+                    # Handle negative profits by using absolute value for size
+                    comparison_df_plot = comparison_df.copy()
+                    comparison_df_plot['Abs_Profit'] = comparison_df_plot['Profit'].abs()
+                    
+                    fig_scatter = px.scatter(
+                        comparison_df_plot, 
+                        x='Service Level', 
+                        y='Inventory Turns',
+                        size='Abs_Profit',  # Use absolute value for marker size
+                        color='Risk Level',
+                        color_discrete_map={
+                            'Critical': '#dc3545',
+                            'Caution': '#ffc107',
+                            'Stable': '#28a745'
+                        },
+                        title='Service Level vs Inventory Efficiency',
+                        labels={
+                            'Service Level': 'Service Level (%)', 
+                            'Inventory Turns': 'Inventory Turns (ratio)'
+                        },
+                        hover_data=['SKU', 'Profit']
+                    )
+                    fig_scatter.update_layout(showlegend=True)
+                    st.plotly_chart(fig_scatter, use_container_width=True, key="scatter_chart_v2")
+                
+                st.markdown("---")
+                # ⬆️⬆️⬆️ END ADDITION 3 ⬆️⬆️⬆️
                 
                 # Multi-metric comparison
                 fig_comparison = make_subplots(
@@ -1285,6 +1710,177 @@ def main():
                     <strong>Impact:</strong> Maximum ROI on working capital deployment
                     </div>
                     """, unsafe_allow_html=True)
+                
+                # ===== PORTFOLIO CARBON FOOTPRINT SUMMARY =====
+                st.markdown("---")
+                st.subheader("🌱 Portfolio Carbon Footprint Summary")
+                
+                # Check if carbon metrics are available
+                if 'carbon_metrics' in st.session_state and st.session_state['carbon_metrics']:
+                    # Filter carbon data to only include currently analyzed SKUs
+                    all_carbon_data = st.session_state['carbon_metrics']
+                    carbon_data = {sku: data for sku, data in all_carbon_data.items() if sku in analyzed_skus}
+                    
+                    if not carbon_data:
+                        st.info("📊 Run simulations for individual SKUs to see carbon footprint data.")
+                    else:
+                        # Calculate portfolio totals
+                        portfolio_total_co2 = sum(sku['total_co2'] for sku in carbon_data.values())
+                        portfolio_transport_co2 = sum(sku['transport_co2'] for sku in carbon_data.values())
+                        portfolio_warehouse_co2 = sum(sku['warehouse_co2'] for sku in carbon_data.values())
+                        
+                        # Calculate averages
+                        avg_co2_per_unit = np.mean([sku['co2_per_unit'] for sku in carbon_data.values()])
+                        avg_carbon_intensity = np.mean([sku['carbon_intensity'] for sku in carbon_data.values()])
+                        
+                        # Get portfolio rating
+                        rating_text, stars, rating_color = CarbonFootprintCalculator.get_carbon_rating(avg_carbon_intensity)
+                        
+                        # Display portfolio metrics
+                        pcol1, pcol2, pcol3, pcol4, pcol5 = st.columns(5)
+                        
+                        with pcol1:
+                            st.metric(
+                                "Portfolio Total CO2",
+                                f"{portfolio_total_co2:,.0f} kg",
+                                help="Total carbon emissions across all SKUs"
+                            )
+                        
+                        with pcol2:
+                            st.metric(
+                                "Avg CO2/Unit",
+                                f"{avg_co2_per_unit:.2f} kg",
+                                help="Average carbon per unit across portfolio"
+                            )
+                        
+                        with pcol3:
+                            st.metric(
+                                "Avg Carbon Intensity",
+                                f"{avg_carbon_intensity:.4f} kg/$",
+                                help="Average CO2 per revenue dollar"
+                            )
+                        
+                        with pcol4:
+                            transport_pct_portfolio = (portfolio_transport_co2 / portfolio_total_co2 * 100) if portfolio_total_co2 > 0 else 0
+                            st.metric(
+                                "Transport %",
+                                f"{transport_pct_portfolio:.1f}%",
+                                help="Percentage from transportation"
+                            )
+                        
+                        with pcol5:
+                            st.markdown(f"""
+                            <div style='text-align: center; padding: 10px;'>
+                                <h3 style='color: {rating_color}; margin: 0;'>{rating_text} {stars}</h3>
+                                <p style='font-size: 12px; margin: 0;'>Portfolio Rating</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # SKU-level carbon comparison
+                        st.markdown("**Carbon Footprint by SKU:**")
+                        
+                        carbon_comparison = []
+                        for sku_name, metrics in carbon_data.items():
+                            # Build transport mode string
+                            transport_mode_str = f"{metrics.get('transport_mode_factory', 'N/A')} → {metrics.get('transport_mode_dc', 'N/A')}"
+                            
+                            carbon_comparison.append({
+                                'SKU': sku_name,
+                                'Total CO2 (kg)': f"{metrics['total_co2']:,.0f}",
+                                'CO2/Unit (kg)': f"{metrics['co2_per_unit']:.2f}",
+                                'Carbon Intensity (kg/$)': f"{metrics['carbon_intensity']:.4f}",
+                                'Transport Mode': transport_mode_str,
+                                'Storage': metrics.get('storage_type', 'N/A'),
+                                'Transport CO2 (kg)': f"{metrics['transport_co2']:,.0f}",
+                                'Warehouse CO2 (kg)': f"{metrics['warehouse_co2']:,.0f}",
+                                'Rating': metrics['rating']
+                            })
+                        
+                        carbon_df = pd.DataFrame(carbon_comparison)
+                        st.dataframe(carbon_df, use_container_width=True, hide_index=True)
+                        
+                        # Visualizations
+                        st.markdown("**Carbon Analytics:**")
+                        
+                        vis_col1, vis_col2 = st.columns(2)
+                        
+                        with vis_col1:
+                            # CO2 by SKU - need numeric values for chart
+                            carbon_chart_data = []
+                            for sku_name, metrics in carbon_data.items():
+                                carbon_chart_data.append({
+                                    'SKU': sku_name,
+                                    'Total CO2 (kg)': metrics['total_co2'],
+                                    'Rating': metrics['rating']
+                                })
+                            carbon_chart_df = pd.DataFrame(carbon_chart_data)
+                            
+                            fig_co2_sku = px.bar(
+                                carbon_chart_df,
+                                x='SKU',
+                                y='Total CO2 (kg)',
+                                title='Total CO2 Emissions by SKU',
+                                color='Rating',
+                                color_discrete_map={
+                                    'Excellent': '#28a745',
+                                    'Good': '#2ECC71',
+                                    'Fair': '#F39C12',
+                                    'Poor': '#E74C3C'
+                                }
+                            )
+                            st.plotly_chart(fig_co2_sku, use_container_width=True, key="portfolio_co2_bar")
+                        
+                        with vis_col2:
+                            # Portfolio breakdown
+                            portfolio_breakdown = pd.DataFrame({
+                                'Source': ['Transport', 'Warehouse'],
+                                'CO2 (kg)': [portfolio_transport_co2, portfolio_warehouse_co2]
+                            })
+                            
+                            fig_portfolio_pie = px.pie(
+                                portfolio_breakdown,
+                                values='CO2 (kg)',
+                                names='Source',
+                                title='Portfolio Carbon Breakdown',
+                                color_discrete_sequence=['#E67E22', '#9B59B6']
+                            )
+                            st.plotly_chart(fig_portfolio_pie, use_container_width=True, key="portfolio_carbon_pie")
+                    
+                else:
+                    st.info("📊 Run simulations for individual SKUs to see portfolio carbon footprint summary.")
+                
+                # ⬇️⬇️⬇️ EXPORT RESULTS - AT END OF PORTFOLIO DASHBOARD ⬇️⬇️⬇️
+                st.markdown("---")
+                st.markdown("### 📥 Export Results")
+                
+                export_col1, export_col2 = st.columns(2)
+                
+                with export_col1:
+                    # Export to CSV
+                    csv = comparison_df.to_csv(index=False)
+                    st.download_button(
+                        label="📄 Download as CSV",
+                        data=csv,
+                        file_name=f"portfolio_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        help="Download portfolio comparison table as CSV file"
+                    )
+                
+                with export_col2:
+                    # Export to Excel
+                    from io import BytesIO
+                    buffer = BytesIO()
+                    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                        comparison_df.to_excel(writer, sheet_name='Portfolio Comparison', index=False)
+                    
+                    st.download_button(
+                        label="📊 Download as Excel",
+                        data=buffer.getvalue(),
+                        file_name=f"portfolio_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        help="Download portfolio comparison table as Excel file"
+                    )
+                # ⬆️⬆️⬆️ END EXPORT FEATURE ⬆️⬆️⬆️
     
     # ============================================================
     # TAB 2+: INDIVIDUAL SKU ANALYSIS
@@ -1344,6 +1940,26 @@ def main():
                 
                 # Always show configuration (users can adjust and re-run anytime)
                 st.info(f"📊 Historical Demand: μ={mean_demand:.0f}, σ={std_demand:.0f} (based on {len(raw_demand)} records)")
+                
+                # ⬇️⬇️⬇️ ADDITION 1: HISTORICAL DEMAND ANALYSIS ⬇️⬇️⬇️
+                st.subheader("📊 Historical Demand Analysis")
+                
+                # Calculate CV
+                cv = (std_demand / mean_demand * 100) if mean_demand > 0 else 0
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Mean Daily Demand", f"{mean_demand:,.0f} units")
+                
+                with col2:
+                    st.metric("Std Deviation", f"{std_demand:,.0f} units")
+                
+                with col3:
+                    st.metric("Coefficient of Variation", f"{cv:.1f}%")
+                
+                st.markdown("---")
+                # ⬆️⬆️⬆️ END ADDITION 1 ⬆️⬆️⬆️
                     
                     # Sanity check for extremely high values
                 if mean_demand > 1_000_000:
@@ -1505,6 +2121,99 @@ def main():
                     - *Critical emergency requiring immediate shipment*
                     """)
                 
+                # ===== CARBON FOOTPRINT SETTINGS (PER-SKU) =====
+                with st.expander("🌱 Carbon Footprint Settings", expanded=False):
+                    st.markdown("**Configure carbon tracking for this SKU**")
+                    st.caption("Set unique transport modes, distances, and storage for accurate emissions tracking")
+                    
+                    carbon_col1, carbon_col2 = st.columns(2)
+                    
+                    with carbon_col1:
+                        st.markdown("**🚛 Transport: Factory → DC**")
+                        transport_mode_factory = st.selectbox(
+                            "Transport Mode",
+                            ["Truck", "Train", "Ship", "Air"],
+                            index=0,
+                            key=f"carbon_factory_{item}",
+                            help="Primary transport from factory/supplier to distribution center"
+                        )
+                        distance_factory_dc = st.number_input(
+                            "Distance (km)",
+                            min_value=0,
+                            value=500,
+                            step=50,
+                            key=f"carbon_dist_factory_{item}",
+                            help="Distance from factory/supplier to DC"
+                        )
+                    
+                    with carbon_col2:
+                        st.markdown("**🏪 Transport: DC → Store**")
+                        transport_mode_dc = st.selectbox(
+                            "Transport Mode",
+                            ["Truck", "Train", "Ship", "Air"],
+                            index=0,
+                            key=f"carbon_dc_{item}",
+                            help="Last-mile transport from DC to retail/customer"
+                        )
+                        distance_dc_store = st.number_input(
+                            "Distance (km)",
+                            min_value=0,
+                            value=200,
+                            step=25,
+                            key=f"carbon_dist_dc_{item}",
+                            help="Distance from DC to store/customer"
+                        )
+                    
+                    carbon_col3, carbon_col4 = st.columns(2)
+                    
+                    with carbon_col3:
+                        product_weight = st.number_input(
+                            "📦 Product Weight (kg/unit)",
+                            min_value=0.01,
+                            value=1.0,
+                            step=0.1,
+                            format="%.2f",
+                            key=f"carbon_weight_{item}",
+                            help="Weight per unit for transport emissions calculation"
+                        )
+                    
+                    with carbon_col4:
+                        storage_type = st.selectbox(
+                            "🏭 Storage Type",
+                            ["Ambient", "Refrigerated", "Frozen", "Climate-Controlled"],
+                            index=0,
+                            key=f"carbon_storage_{item}",
+                            help="Warehouse storage requirements affect energy emissions"
+                        )
+                    
+                    # Show emission factors for reference
+                    with st.expander("ℹ️ Emission Factors Reference"):
+                        st.markdown("""
+                        **Transport (g CO2 per ton-km):**
+                        - Truck: 62 (DEFRA 2023)
+                        - Train: 22 (DEFRA 2023)
+                        - Ship: 10 (IMO 2023)
+                        - Air: 500 (IATA 2023)
+                        
+                        **Warehouse (kg CO2 per unit per year):**
+                        - Ambient: 0.5
+                        - Refrigerated: 2.0
+                        - Frozen: 4.0
+                        - Climate-Controlled: 1.0
+                        """)
+                    
+                    st.info("💡 Carbon emissions will be calculated after simulation based on these settings")
+                    
+                    # Store carbon config for this SKU
+                    st.session_state[f"carbon_config_{item}"] = {
+                        'transport_mode_factory': transport_mode_factory,
+                        'distance_factory_dc': distance_factory_dc,
+                        'transport_mode_dc': transport_mode_dc,
+                        'distance_dc_store': distance_dc_store,
+                        'product_weight': product_weight,
+                        'storage_type': storage_type
+                    }
+                
                 # Execute simulation button
                 if st.button(f"🚀 Execute AI Twin Simulation", key=f"exec_{item}", type="primary", use_container_width=True):
                     
@@ -1559,6 +2268,78 @@ def main():
                             
                             # Store in global portfolio results
                             st.session_state['sku_results'][item] = st.session_state[f"memory_{item}"]["results"]
+                            
+                            # Calculate and store carbon metrics IMMEDIATELY after simulation
+                            try:
+                                # Get per-SKU carbon configuration
+                                carbon_config = st.session_state.get(f"carbon_config_{item}", {
+                                    'transport_mode_factory': 'Truck',
+                                    'distance_factory_dc': 500,
+                                    'transport_mode_dc': 'Truck',
+                                    'distance_dc_store': 200,
+                                    'product_weight': 1.0,
+                                    'storage_type': 'Ambient'
+                                })
+                                
+                                sim_results_for_carbon = sim_df
+                                avg_service_level_carbon = sim_results_for_carbon['service_level'].mean()
+                                avg_lost_sales_carbon = sim_results_for_carbon['lost_sales'].mean()
+                                avg_revenue_carbon = sim_results_for_carbon['revenue'].mean()
+                                avg_inventory_carbon = sim_results_for_carbon['avg_inventory'].mean()
+                                
+                                # Calculate fulfilled units
+                                if avg_service_level_carbon < 100:
+                                    estimated_total_demand = avg_lost_sales_carbon / (1 - avg_service_level_carbon/100) if avg_service_level_carbon < 99.9 else avg_lost_sales_carbon * 100
+                                else:
+                                    estimated_total_demand = avg_lost_sales_carbon * 100
+                                total_units_carbon = estimated_total_demand - avg_lost_sales_carbon
+                                if total_units_carbon <= 0:
+                                    total_units_carbon = avg_revenue_carbon / 100
+                                
+                                # Transport emissions using per-SKU settings
+                                transport_co2_factory = CarbonFootprintCalculator.calculate_transport_co2(
+                                    carbon_config['distance_factory_dc'], 
+                                    carbon_config['product_weight'], 
+                                    total_units_carbon, 
+                                    carbon_config['transport_mode_factory']
+                                )
+                                transport_co2_dc = CarbonFootprintCalculator.calculate_transport_co2(
+                                    carbon_config['distance_dc_store'], 
+                                    carbon_config['product_weight'], 
+                                    total_units_carbon, 
+                                    carbon_config['transport_mode_dc']
+                                )
+                                total_transport_co2 = transport_co2_factory + transport_co2_dc
+                                
+                                # Warehouse emissions using per-SKU settings
+                                warehouse_co2 = CarbonFootprintCalculator.calculate_warehouse_co2(
+                                    avg_inventory_carbon, 
+                                    sim_days, 
+                                    carbon_config['storage_type']
+                                )
+                                
+                                # Total carbon
+                                total_co2 = total_transport_co2 + warehouse_co2
+                                carbon_intensity = total_co2 / avg_revenue_carbon if avg_revenue_carbon > 0 else 0
+                                co2_per_unit = total_co2 / total_units_carbon if total_units_carbon > 0 else 0
+                                rating_text, _, _ = CarbonFootprintCalculator.get_carbon_rating(carbon_intensity)
+                                
+                                # Store carbon metrics WITH transport mode info
+                                if 'carbon_metrics' not in st.session_state:
+                                    st.session_state['carbon_metrics'] = {}
+                                st.session_state['carbon_metrics'][item] = {
+                                    'total_co2': total_co2,
+                                    'co2_per_unit': co2_per_unit,
+                                    'carbon_intensity': carbon_intensity,
+                                    'transport_co2': total_transport_co2,
+                                    'warehouse_co2': warehouse_co2,
+                                    'rating': rating_text,
+                                    'transport_mode_factory': carbon_config['transport_mode_factory'],
+                                    'transport_mode_dc': carbon_config['transport_mode_dc'],
+                                    'storage_type': carbon_config['storage_type']
+                                }
+                            except:
+                                pass  # If carbon calculation fails, just skip it
                         
                         st.success("✅ Simulation complete!")
                         st.rerun()
@@ -1697,6 +2478,168 @@ def main():
                             f"{risk_analysis['total_risk']:.0f}/100",
                             help=f"Service Gap: {risk_analysis['components']['service_gap']:.0f} | Volatility: {risk_analysis['components']['profit_volatility']:.0f} | Stockout: {risk_analysis['components']['stockout_cost']:.0f}"
                         )
+                        
+                        # ===== CARBON FOOTPRINT METRICS =====
+                        st.markdown("---")
+                        st.subheader("🌱 Carbon Footprint Analysis")
+                        
+                        try:
+                            # Get per-SKU carbon configuration
+                            carbon_config = st.session_state.get(f"carbon_config_{item}", {
+                                'transport_mode_factory': 'Truck',
+                                'distance_factory_dc': 500,
+                                'transport_mode_dc': 'Truck',
+                                'distance_dc_store': 200,
+                                'product_weight': 1.0,
+                                'storage_type': 'Ambient'
+                            })
+                            
+                            # Validate required columns exist
+                            required_cols = ['lost_sales', 'avg_inventory', 'revenue', 'service_level']
+                            missing_cols = [col for col in required_cols if col not in sim_df.columns]
+                            
+                            if missing_cols:
+                                st.warning(f"⚠️ Carbon calculation unavailable. Missing data: {', '.join(missing_cols)}")
+                            else:
+                                # Calculate total fulfilled units from service level
+                                avg_revenue_carbon = sim_df['revenue'].mean()
+                                avg_service_level = sim_df['service_level'].mean()
+                                avg_lost_sales = sim_df['lost_sales'].mean()
+                                
+                                # Estimate total demand and fulfilled units
+                                if avg_service_level < 100:
+                                    estimated_total_demand = avg_lost_sales / (1 - avg_service_level/100) if avg_service_level < 99.9 else avg_lost_sales * 100
+                                else:
+                                    estimated_total_demand = avg_lost_sales * 100
+                                
+                                total_units = estimated_total_demand - avg_lost_sales
+                                
+                                # Ensure positive value
+                                if total_units <= 0:
+                                    total_units = avg_revenue_carbon / 100
+                                
+                                avg_inventory_carbon = sim_df['avg_inventory'].mean()
+                                simulation_days_carbon = sim_days
+                                
+                                # Transport emissions using per-SKU settings
+                                transport_co2_factory = CarbonFootprintCalculator.calculate_transport_co2(
+                                    carbon_config['distance_factory_dc'],
+                                    carbon_config['product_weight'],
+                                    total_units,
+                                    carbon_config['transport_mode_factory']
+                                )
+                                
+                                transport_co2_dc = CarbonFootprintCalculator.calculate_transport_co2(
+                                    carbon_config['distance_dc_store'],
+                                    carbon_config['product_weight'],
+                                    total_units,
+                                    carbon_config['transport_mode_dc']
+                                )
+                                
+                                total_transport_co2 = transport_co2_factory + transport_co2_dc
+                                
+                                # Warehouse emissions using per-SKU settings
+                                warehouse_co2 = CarbonFootprintCalculator.calculate_warehouse_co2(
+                                    avg_inventory_carbon,
+                                    simulation_days_carbon,
+                                    carbon_config['storage_type']
+                                )
+                                
+                                # Total carbon footprint
+                                total_co2 = total_transport_co2 + warehouse_co2
+                                
+                                # Carbon intensity (CO2 per dollar)
+                                avg_revenue_carbon = sim_df['revenue'].mean()
+                                carbon_intensity = total_co2 / avg_revenue_carbon if avg_revenue_carbon > 0 else 0
+                                
+                                # CO2 per unit
+                                co2_per_unit = total_co2 / total_units if total_units > 0 else 0
+                                
+                                # Get rating
+                                rating_text, stars, rating_color = CarbonFootprintCalculator.get_carbon_rating(carbon_intensity)
+                                
+                                # Display metrics
+                                carbon_col1, carbon_col2, carbon_col3, carbon_col4 = st.columns(4)
+                                
+                                with carbon_col1:
+                                    st.metric(
+                                        "Total CO2",
+                                        f"{total_co2:,.0f} kg",
+                                        help="Total carbon emissions for simulation period"
+                                    )
+                                
+                                with carbon_col2:
+                                    st.metric(
+                                        "CO2 per Unit",
+                                        f"{co2_per_unit:.2f} kg",
+                                        help="Carbon footprint per product unit"
+                                    )
+                                
+                                with carbon_col3:
+                                    st.metric(
+                                        "Carbon Intensity",
+                                        f"{carbon_intensity:.4f} kg/$",
+                                        help="CO2 emissions per dollar of revenue"
+                                    )
+                                
+                                with carbon_col4:
+                                    st.markdown(f"""
+                                    <div style='text-align: center; padding: 10px;'>
+                                        <h3 style='color: {rating_color}; margin: 0;'>{rating_text} {stars}</h3>
+                                        <p style='font-size: 12px; margin: 0;'>Carbon Rating</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Carbon breakdown
+                                st.markdown("**Carbon Emissions Breakdown:**")
+                                
+                                breakdown_col1, breakdown_col2 = st.columns(2)
+                                
+                                with breakdown_col1:
+                                    transport_pct = (total_transport_co2 / total_co2 * 100) if total_co2 > 0 else 0
+                                    warehouse_pct = (warehouse_co2 / total_co2 * 100) if total_co2 > 0 else 0
+                                    
+                                    breakdown_data = pd.DataFrame({
+                                        'Source': ['Transport', 'Warehouse'],
+                                        'CO2 (kg)': [total_transport_co2, warehouse_co2],
+                                        'Percentage': [f"{transport_pct:.1f}%", f"{warehouse_pct:.1f}%"]
+                                    })
+                                    
+                                    st.dataframe(breakdown_data, use_container_width=True, hide_index=True)
+                                
+                                with breakdown_col2:
+                                    fig_carbon = px.pie(
+                                        breakdown_data,
+                                        values='CO2 (kg)',
+                                        names='Source',
+                                        title='Carbon Emissions by Source',
+                                        color_discrete_sequence=['#E67E22', '#9B59B6']
+                                    )
+                                    fig_carbon.update_traces(textposition='inside', textinfo='percent+label')
+                                    st.plotly_chart(fig_carbon, use_container_width=True, key=f"carbon_pie_{item}")
+                                
+                                # Show current carbon configuration
+                                st.caption(f"🌱 **Configuration:** Factory→DC: {carbon_config['transport_mode_factory']} ({carbon_config['distance_factory_dc']}km) | DC→Store: {carbon_config['transport_mode_dc']} ({carbon_config['distance_dc_store']}km) | Weight: {carbon_config['product_weight']}kg | Storage: {carbon_config['storage_type']}")
+                                
+                                # Store carbon metrics for portfolio summary
+                                if 'carbon_metrics' not in st.session_state:
+                                    st.session_state['carbon_metrics'] = {}
+                                
+                                st.session_state['carbon_metrics'][item] = {
+                                    'total_co2': total_co2,
+                                    'co2_per_unit': co2_per_unit,
+                                    'carbon_intensity': carbon_intensity,
+                                    'transport_co2': total_transport_co2,
+                                    'warehouse_co2': warehouse_co2,
+                                    'rating': rating_text,
+                                    'transport_mode_factory': carbon_config['transport_mode_factory'],
+                                    'transport_mode_dc': carbon_config['transport_mode_dc'],
+                                    'storage_type': carbon_config['storage_type']
+                                }
+                        
+                        except Exception as e:
+                            st.error(f"⚠️ Error calculating carbon footprint: {str(e)}")
+                            st.info("💡 Please ensure the simulation completed successfully and try again.")
                         
                         # --- VISUALIZATIONS ---
                         st.subheader("📈 Performance Analytics")
